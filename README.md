@@ -13,15 +13,20 @@ This project ingests technical manuals (PDF) from SharePoint, stores text/images
 
 ---
 
-## Prerequisites
-1) **Python**: 3.10+ (project uses uv/pyproject).  
-2) **System packages**: `python3-dev`, `build-essential`, `poppler-utils` (for PDFs), `libmagic1`.  
-3) **Accounts/Keys**:
-   - Azure AD app (tenant/client/secret) and SharePoint site/drive IDs.
-   - Azure Blob Storage connection string + account key.
-   - Qdrant (self-hosted or cloud) URL/API key.
-   - OpenAI API key (GPT-5.2).  
-4) **Access**: SharePoint library with PDFs; Azure storage container (will create if missing).
+## Prerequisites (step-by-step)
+1) **Python**: 3.10+ available on PATH.  
+2) **System packages** (Ubuntu/Debian example):
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y python3-dev python3-venv build-essential poppler-utils libmagic1
+   ```
+3) **Accounts/Keys** (gather before setup):
+   - Azure AD app: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+   - SharePoint: `SHAREPOINT_SITE_ID`, `SHAREPOINT_DRIVE_ID` (or drive name), optional `SHAREPOINT_FOLDER_PATH`
+   - Azure Blob Storage: `AZURE_STORAGE_CONNECTION_STRING` (or `AZURE_STORAGE_KEY`)
+   - Qdrant: `QDRANT_URL`, `QDRANT_API_KEY` (blank if auth disabled)
+   - OpenAI: `OPENAI_API_KEY` (GPT-5.2), optional `OPENAI_API_BASE`
+4) **Data access**: SharePoint library with PDFs. Azure storage account; container will be created automatically if missing.
 
 ---
 
@@ -65,6 +70,14 @@ When done:
 ```bash
 set -a && source .env && set +a
 ```
+
+---
+
+## Before Running Anything
+1) Make sure Qdrant is running (see Docker quick start below) and `QDRANT_URL` points to it.  
+2) Confirm `.env` is loaded in the current shell (`echo $OPENAI_API_KEY` should show a value).  
+3) Ensure SharePoint drive/folder contains at least one PDF.  
+4) Azure Storage account/keys are correct (SAS generation depends on them).
 
 ---
 
@@ -160,6 +173,14 @@ set -a && source .env && set +a
 streamlit run ui/chat.py --server.port 8501
 ```
 Open: http://localhost:8501 (or your host IP:8501). If you see “Still waiting on OpenAI…”, the backend may be retrying; try again after a moment.
+
+---
+
+## Run Tests
+```bash
+source 1440_env/bin/activate
+pytest
+```
 
 ---
 
