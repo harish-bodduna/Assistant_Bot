@@ -148,6 +148,18 @@ QDRANT_API_KEY=   # leave blank unless you configure auth
 - **OpenAI timeouts**: Try again; ensure network allows outbound to api.openai.com; check key validity.
 - **Qdrant not reachable**: Verify `QDRANT_URL`/`QDRANT_API_KEY`, and that the service is running.
 - **SharePoint fetch fails**: Re-check tenant/app creds and site/drive IDs; ensure the PDF exists in `SHAREPOINT_FOLDER_PATH`.
+- **Streamlit shows no images**: Ensure `answer_markdown` is rendered; refresh after long waits; network must allow blob URLs.
+
+---
+
+## Streamlit (Chat UI) Quick Start
+```bash
+cd /home/stormy/dev-workspace/projects/1440_Bot
+source 1440_env/bin/activate
+set -a && source .env && set +a
+streamlit run ui/chat.py --server.port 8501
+```
+Open: http://localhost:8501 (or your host IP:8501). If you see “Still waiting on OpenAI…”, the backend may be retrying; try again after a moment.
 
 ---
 
