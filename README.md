@@ -57,6 +57,26 @@ cp env.example .env
 
 ---
 
+## Windows Notes (Docling / deps)
+- For best compatibility, use **WSL (Ubuntu)** and follow the Linux steps above.
+- If staying on native Windows:
+  - Install Python 3.10+ (from python.org) and add to PATH.
+  - Poppler: install a Windows build (e.g., from `https://github.com/oschwartz10612/poppler-windows/releases`), add its `bin/` to PATH.
+  - libmagic: use the Python wheel dependency (included), but if errors occur, try `pip install python-magic-bin`.
+  - uv on Windows:  
+    ```powershell
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+    ```
+  - Env loading in PowerShell (example):  
+    ```powershell
+    .\1440_env\Scripts\activate
+    Get-Content .env | ForEach-Object {
+      $p=$_ -split '=',2; if($p.Length -eq 2){ set-item -path env:$($p[0]) -value $p[1] }
+    }
+    ```
+
+---
+
 ## Configure Environment (.env)
 Open `.env` and fill every value (no blanks). Key variables:
 - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
