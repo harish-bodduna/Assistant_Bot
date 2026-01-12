@@ -1,0 +1,72 @@
+{
+  "file_name": "Barracuda Backup Policy v1.0.pdf",
+  "sas_urls": [
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_1_page_3.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=7FzScmaFagDf/n1jYzz9xlx3AEPKtkEnJPZCqWV3CUY%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_2_page_4.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=V%2BtMy71uZZ6%2B2iy%2BZaVVCSARjJa1t475EX8hfdzNrQU%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_3_page_5.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=%2BaAdvkZlwJ9UY%2BLcSjnFqydSeSb72L%2BDYlcIxuNzd20%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_4_page_5.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=/ABcgcCxAYwFwPyEKlwQ/5BYmNEBqEiUwe/RuY1J5bw%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_5_page_6.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=8nqFDMfFYUsCchBQ/C0xRL9mck3qGuIq5l0qxoPzxnk%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_6_page_6.png?st=2026-01-10T18%3A05%3A40Z&se=2026-02-09T18%3A10%3A40Z&sp=r&sv=2026-02-06&sr=b&sig=2x98nnl3hGx4CtX33ZcIzyPvEeWaJzD8b3J%2BTp4z6o4%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_7_page_7.png?st=2026-01-10T18%3A05%3A40Z&se=2026-02-09T18%3A10%3A40Z&sp=r&sv=2026-02-06&sr=b&sig=988JGLzB49JXBKxS5H6uHVkWCtOlYOCtcxDdIRKzPqk%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_8_page_7.png?st=2026-01-10T18%3A05%3A40Z&se=2026-02-09T18%3A10%3A40Z&sp=r&sv=2026-02-06&sr=b&sig=fOo3w7aT27ScWjGICMJzk4j574TmPAhG4kcpsmIgGaM%3D"
+  ],
+  "figures": [
+    {
+      "step": 1,
+      "page_number": 3,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_1_page_3.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=7FzScmaFagDf/n1jYzz9xlx3AEPKtkEnJPZCqWV3CUY%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_1_page_3.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_1_page_3.png"
+    },
+    {
+      "step": 1,
+      "page_number": 4,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_2_page_4.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=V%2BtMy71uZZ6%2B2iy%2BZaVVCSARjJa1t475EX8hfdzNrQU%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_2_page_4.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_2_page_4.png"
+    },
+    {
+      "step": 1,
+      "page_number": 5,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_3_page_5.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=%2BaAdvkZlwJ9UY%2BLcSjnFqydSeSb72L%2BDYlcIxuNzd20%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_3_page_5.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_3_page_5.png"
+    },
+    {
+      "step": 1,
+      "page_number": 5,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_4_page_5.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=/ABcgcCxAYwFwPyEKlwQ/5BYmNEBqEiUwe/RuY1J5bw%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_4_page_5.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_4_page_5.png"
+    },
+    {
+      "step": 1,
+      "page_number": 6,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_5_page_6.png?st=2026-01-10T18%3A05%3A39Z&se=2026-02-09T18%3A10%3A39Z&sp=r&sv=2026-02-06&sr=b&sig=8nqFDMfFYUsCchBQ/C0xRL9mck3qGuIq5l0qxoPzxnk%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_5_page_6.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_5_page_6.png"
+    },
+    {
+      "step": 1,
+      "page_number": 6,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_6_page_6.png?st=2026-01-10T18%3A05%3A40Z&se=2026-02-09T18%3A10%3A40Z&sp=r&sv=2026-02-06&sr=b&sig=2x98nnl3hGx4CtX33ZcIzyPvEeWaJzD8b3J%2BTp4z6o4%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_6_page_6.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_6_page_6.png"
+    },
+    {
+      "step": 1,
+      "page_number": 7,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_7_page_7.png?st=2026-01-10T18%3A05%3A40Z&se=2026-02-09T18%3A10%3A40Z&sp=r&sv=2026-02-06&sr=b&sig=988JGLzB49JXBKxS5H6uHVkWCtOlYOCtcxDdIRKzPqk%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_7_page_7.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_7_page_7.png"
+    },
+    {
+      "step": 1,
+      "page_number": 7,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/Barracuda_Backup_Policy_v1_0/images/fig_8_page_7.png?st=2026-01-10T18%3A05%3A40Z&se=2026-02-09T18%3A10%3A40Z&sp=r&sv=2026-02-06&sr=b&sig=fOo3w7aT27ScWjGICMJzk4j574TmPAhG4kcpsmIgGaM%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/Barracuda_Backup_Policy_v1_0/images/fig_8_page_7.png",
+      "blob_name": "Barracuda_Backup_Policy_v1_0/images/fig_8_page_7.png"
+    }
+  ],
+  "preamble": []
+}

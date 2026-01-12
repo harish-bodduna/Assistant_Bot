@@ -1,0 +1,3 @@
+The ceiling plan for Suite 1001 can be found in the image labeled as "SUITE 1001 SUGGESTED CEILING PLAN". Here is the corresponding image:
+
+![SUITE 1001 SUGGESTED CEILING PLAN](https://copilot14.blob.core.windows.net/manual-images/1440_FOODS__-SUITE_1001_DESIGN_PRESENTATION_11_14_25__1_/images/fig_3_page_2.png?st=2026-01-10T17%3A14%3A04Z&se=2026-02-09T17%3A19%3A04Z&sp=r&sv=2026-02-06&sr=b&sig=WMB4vJVvkqbmytV5HCsP5836ezzeY0ge0AxKxJMOwlk%3D)

@@ -1,0 +1,128 @@
+{
+  "file_name": "External SharePoint access.pdf",
+  "sas_urls": [
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_1_page_1.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=ksxlvkGh4FUnDpIPg/TUJWTaHJBztSM98bv9IwoTXQU%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_2_page_1.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=x17x487ArQyCun%2BmQhfifNT5TNjfSUDveOnAKcXSX3o%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_3_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=dCiB0%2BXjIBU/3xaumph/r0oto/zfuUYfedzApvSZDgQ%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_4_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=NSBNkwFE/6oRwziDO8Y2ObQapo7MrbXsBrgIYHnrYbU%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_5_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=EntyNeVj0GqTxNYMWXbGTFeSYWahoT4El8QQEVx2yf4%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_6_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=d0F4F1LVJCBYJkZrj8ABDao7XObIbpi7GzecMBDB6SQ%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_7_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=VCd3KartbmGDWaVxGbjulPg2uhw4mpVPSQGj9//Wt8A%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_8_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=VhdnEtZvE%2B5GhIaMKCc5xkaYi%2BzooClrs%2BvsHkKgPFA%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_9_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=n0/dH6T%2BMfNTPdeljOftQ2rrtAucZT61SUATL09/LzE%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_10_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=mjpsQ3za07hWPqKtWb%2BHsT3SQuBlPt5xFKDho9SbqB8%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_11_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=Bjjkwkt5l8IzJrURHNSujMSfRkJdbhFnyVPNHVHUkvA%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_12_page_4.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=Kk/FnJY1xr1V13nWRCD5eYUcOypTnkVCMhyIa4ZT6fM%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_13_page_4.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=kz5wEg9TIDmVTm9p/8THaMZwhDGXJFODCHPgrlGksXs%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_14_page_5.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=VAHlJjLf/sP0EfJjwjsj68WZg/8wMW5Zmlqtnv7XzaM%3D",
+    "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_15_page_5.png?st=2026-01-10T17%3A55%3A56Z&se=2026-02-09T18%3A00%3A56Z&sp=r&sv=2026-02-06&sr=b&sig=HRBYaEyns2BgeR/1e9Fvzpt3weMd77QIOpzb4ZTFSB4%3D"
+  ],
+  "figures": [
+    {
+      "step": 1,
+      "page_number": 1,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_1_page_1.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=ksxlvkGh4FUnDpIPg/TUJWTaHJBztSM98bv9IwoTXQU%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_1_page_1.png",
+      "blob_name": "External_SharePoint_access/images/fig_1_page_1.png"
+    },
+    {
+      "step": 1,
+      "page_number": 1,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_2_page_1.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=x17x487ArQyCun%2BmQhfifNT5TNjfSUDveOnAKcXSX3o%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_2_page_1.png",
+      "blob_name": "External_SharePoint_access/images/fig_2_page_1.png"
+    },
+    {
+      "step": 1,
+      "page_number": 2,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_3_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=dCiB0%2BXjIBU/3xaumph/r0oto/zfuUYfedzApvSZDgQ%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_3_page_2.png",
+      "blob_name": "External_SharePoint_access/images/fig_3_page_2.png"
+    },
+    {
+      "step": 1,
+      "page_number": 2,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_4_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=NSBNkwFE/6oRwziDO8Y2ObQapo7MrbXsBrgIYHnrYbU%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_4_page_2.png",
+      "blob_name": "External_SharePoint_access/images/fig_4_page_2.png"
+    },
+    {
+      "step": 1,
+      "page_number": 2,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_5_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=EntyNeVj0GqTxNYMWXbGTFeSYWahoT4El8QQEVx2yf4%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_5_page_2.png",
+      "blob_name": "External_SharePoint_access/images/fig_5_page_2.png"
+    },
+    {
+      "step": 1,
+      "page_number": 2,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_6_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=d0F4F1LVJCBYJkZrj8ABDao7XObIbpi7GzecMBDB6SQ%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_6_page_2.png",
+      "blob_name": "External_SharePoint_access/images/fig_6_page_2.png"
+    },
+    {
+      "step": 1,
+      "page_number": 2,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_7_page_2.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=VCd3KartbmGDWaVxGbjulPg2uhw4mpVPSQGj9//Wt8A%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_7_page_2.png",
+      "blob_name": "External_SharePoint_access/images/fig_7_page_2.png"
+    },
+    {
+      "step": 1,
+      "page_number": 3,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_8_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=VhdnEtZvE%2B5GhIaMKCc5xkaYi%2BzooClrs%2BvsHkKgPFA%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_8_page_3.png",
+      "blob_name": "External_SharePoint_access/images/fig_8_page_3.png"
+    },
+    {
+      "step": 1,
+      "page_number": 3,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_9_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=n0/dH6T%2BMfNTPdeljOftQ2rrtAucZT61SUATL09/LzE%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_9_page_3.png",
+      "blob_name": "External_SharePoint_access/images/fig_9_page_3.png"
+    },
+    {
+      "step": 1,
+      "page_number": 3,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_10_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=mjpsQ3za07hWPqKtWb%2BHsT3SQuBlPt5xFKDho9SbqB8%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_10_page_3.png",
+      "blob_name": "External_SharePoint_access/images/fig_10_page_3.png"
+    },
+    {
+      "step": 1,
+      "page_number": 3,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_11_page_3.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=Bjjkwkt5l8IzJrURHNSujMSfRkJdbhFnyVPNHVHUkvA%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_11_page_3.png",
+      "blob_name": "External_SharePoint_access/images/fig_11_page_3.png"
+    },
+    {
+      "step": 1,
+      "page_number": 4,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_12_page_4.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=Kk/FnJY1xr1V13nWRCD5eYUcOypTnkVCMhyIa4ZT6fM%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_12_page_4.png",
+      "blob_name": "External_SharePoint_access/images/fig_12_page_4.png"
+    },
+    {
+      "step": 1,
+      "page_number": 4,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_13_page_4.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=kz5wEg9TIDmVTm9p/8THaMZwhDGXJFODCHPgrlGksXs%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_13_page_4.png",
+      "blob_name": "External_SharePoint_access/images/fig_13_page_4.png"
+    },
+    {
+      "step": 1,
+      "page_number": 5,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_14_page_5.png?st=2026-01-10T17%3A55%3A55Z&se=2026-02-09T18%3A00%3A55Z&sp=r&sv=2026-02-06&sr=b&sig=VAHlJjLf/sP0EfJjwjsj68WZg/8wMW5Zmlqtnv7XzaM%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_14_page_5.png",
+      "blob_name": "External_SharePoint_access/images/fig_14_page_5.png"
+    },
+    {
+      "step": 1,
+      "page_number": 5,
+      "sas_url": "https://copilot14.blob.core.windows.net/manual-images/External_SharePoint_access/images/fig_15_page_5.png?st=2026-01-10T17%3A55%3A56Z&se=2026-02-09T18%3A00%3A56Z&sp=r&sv=2026-02-06&sr=b&sig=HRBYaEyns2BgeR/1e9Fvzpt3weMd77QIOpzb4ZTFSB4%3D",
+      "local_path": "/home/stormy/dev-workspace/projects/1440_Bot/markdown_exports/External_SharePoint_access/images/fig_15_page_5.png",
+      "blob_name": "External_SharePoint_access/images/fig_15_page_5.png"
+    }
+  ],
+  "preamble": []
+}
