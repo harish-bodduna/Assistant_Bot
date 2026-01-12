@@ -128,6 +128,21 @@ Open http://localhost:8501. Enter a question; answers render with interleaved te
 
 ---
 
+## Qdrant (Docker Quick Start)
+Run Qdrant locally with Docker:
+```bash
+docker run -d --name qdrant \
+  -p 6333:6333 -p 6334:6334 \
+  qdrant/qdrant:v1.9.2
+```
+Then set in `.env`:
+```
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=   # leave blank unless you configure auth
+```
+
+---
+
 ## Troubleshooting
 - **Push blocked (secrets)**: `.env` is ignored; never commit real keys. If blocked, remove secrets from history and push again.
 - **OpenAI timeouts**: Try again; ensure network allows outbound to api.openai.com; check key validity.
