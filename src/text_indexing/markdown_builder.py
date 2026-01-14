@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .step_builder import detect_step_number  # re-exported for convenience
 from .storage import AzureBlobStorage
@@ -16,6 +16,7 @@ def render_markdown(
     safe_base: str,
     fig_dir: Path,
     storage: AzureBlobStorage,
+    clean_images: Optional[List[Dict[str, Any]]] = None,  # NEW parameter
 ) -> tuple[str, str, List[str], List[Dict[str, Any]]]:
     md_parts: List[str] = []
     sas_urls: List[str] = []
@@ -59,6 +60,22 @@ def render_markdown(
                 )
 
         md_parts.append("---")
+
+    # NEW: Add clean images metadata (these are already uploaded, just reference them)
+    if clean_images:
+        for img_data in clean_images:
+            sas_url = img_data.get("sas_url")
+            if sas_url:
+                sas_urls.append(sas_url)
+                fig_meta.append({
+                    "step": None,  # Not associated with a specific step
+                    "page_number": img_data.get("page", 0),
+                    "sas_url": sas_url,
+                    "local_path": None,
+                    "blob_name": img_data.get("filename", ""),
+                    "id": img_data.get("id"),
+                    "type": "clean_image",  # Mark as clean image
+                })
 
     full_markdown = "\n\n".join(part for part in md_parts if part).strip()
     embed_markdown = strip_urls_for_embed(full_markdown)

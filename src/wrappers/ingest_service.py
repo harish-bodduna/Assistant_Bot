@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -88,7 +89,10 @@ def ingest_one(file_id: Optional[str] = None, folder_path: Optional[str] = "Shar
     except Exception as exc:
         ts_print(f"Warning: Failed to save PDF to local folder: {exc}")
 
-    ingestor = LayoutAwareIngestor(collection="manuals_text")
+    # Get banned images directory from environment or use default
+    banned_images_dir = os.getenv("BANNED_IMAGES_DIR")
+    
+    ingestor = LayoutAwareIngestor(collection="manuals_text", banned_images_dir=banned_images_dir)
     try:
         ts_print(f"Ingesting {pdf_name}")
         ingestor.index_pdf(pdf_bytes, file_name=pdf_name)
@@ -127,7 +131,10 @@ def ingest_all(folder_path: Optional[str] = "Shared Documents") -> Dict[str, Any
         ts_print("No PDFs found in SharePoint folder.")
         return {"ok": False, "message": "No PDFs found in SharePoint folder.", "processed": 0, "failed": 0}
 
-    ingestor = LayoutAwareIngestor(collection="manuals_text")
+    # Get banned images directory from environment or use default
+    banned_images_dir = os.getenv("BANNED_IMAGES_DIR")
+    
+    ingestor = LayoutAwareIngestor(collection="manuals_text", banned_images_dir=banned_images_dir)
     ok_count, fail_count = 0, 0
     errors = []
     for f in pdfs:

@@ -43,7 +43,22 @@ if prompt:
 
             if (not reply) or ("Request timed out" in reply):
                 reply = "Still waiting on OpenAI… please retry in a moment."
-            # Allow full markdown rendering (including images/SAS URLs)
+            
+            # Render markdown with image support
+            # Streamlit's markdown can render images from URLs in ![alt](url) format
             st.markdown(reply, unsafe_allow_html=True)
+            
+            # Also try to render images directly if markdown doesn't work
+            import re
+            image_pattern = r'!\[([^\]]*)\]\((https?://[^\)]+)\)'
+            images = re.findall(image_pattern, reply)
+            if images:
+                st.caption(f"Found {len(images)} image(s) in response")
+                for alt_text, img_url in images[:5]:  # Limit to first 5 images
+                    try:
+                        st.image(img_url, caption=alt_text if alt_text else "Step image")
+                    except Exception as e:
+                        st.warning(f"Could not load image: {alt_text}")
+            
             add_message("assistant", reply)
 

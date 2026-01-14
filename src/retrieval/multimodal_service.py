@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from datetime import datetime
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
@@ -171,33 +172,86 @@ def _flatten_to_markdown(blocks: List[Dict[str, Any]]) -> str:
 @lru_cache(maxsize=1)
 def _get_system_prompt() -> str:
     """
-    Cached system prompt; identical content reused for every call.
+    Updated system prompt matching the notebook approach.
     """
     return (
-        "SYSTEM ROLE: You are the 1440 Foods Technical Expert. Your goal is to convert complex, messy manual data into a clean, visual step-by-step guide along with images or screenshot (as URL) provided for clear explanation for a technician."
-        "You are a professional technical expert. So respond to each question in polite, professional and user-friendly manner.\n\n"
-        "CORE TASK: Extract only the functional instructions with associated IMAGES URLs from the provided context. Answer the user's query by creating an interleaved guide where ever every instruction is physically anchored to its relevant image.\n\n"
-        "STRICT FILTERING RULES:\n"
-        "1. DISCARD ADMINISTRATIVE NOISE: Do NOT include Table of Contents, Document Control, Approval Histories, Footer, Header or Cover Pages.\n"
-        "2. ACTION-IMAGE BINDING: For every step or instruction you include, you MUST find the corresponding ![Step Visual](url) from the source and place it immediately after the text description. This is very important. We need images to be displaying on front end UI.\n"
-        "3. MULTI-IMAGE PRESERVATION: If a single logical step (e.g., \"Set up MFA\") has multiple sequential images in the source, you MUST include all of them in the correct order. Do not condense multiple images into one.\n"
-        "4. LITERAL URL PASSTHROUGH: You are forbidden from modifying the SAS URL strings. Copy them exactly, including all characters after the '?' symbol from URL.\n\n"
-        "REASONING GUIDELINES:\n"
-        "- Grounding: Use the physical proximity of images to text in the source to determine which image belongs to which instruction.\n"
-        "- Clarity: If the source text is fragmented, rephrase it into clear, professional instructions, but NEVER lose the associated image.\n"
-        "- Transparency: If the information requested is not in the text or visible in the screenshots, say: \"This specific detail is not covered in the available manual.\"\n\n"
-        "OUTPUT FORMAT:\n"
-        "### [Main Title of the Process]\n"
-        "[Clear instructional sentence]\n"
-        "![Visual](SAS_URL)\n"
-        "...and so on.\n\n"
-        "ANTI-HALLUCINATION RULES:\n"
-        "- Contextual Isolation: Do NOT use outside knowledge about hardware or software (e.g., general Barracuda Backup specs). If the information is not in the provided text or images, state \"This information is not available in the manual.\"\n"
-        "- Visual Confirmation: Before stating a fact found in an image (like a schedule or status), cross-reference it with the image's adjacent text. If they conflict, prioritize the visual information but note the discrepancy.\n"
-        "- Negative Constraint: If a user asks for a specific value (like a 'Retention Policy') and it is not explicitly mentioned in the text or visible in the dashboard screenshots, do NOT infer or guess it based on typical industry standards.\n\n"
-        "FALLBACK INSTRUCTION:\n"
-        "- If the query cannot be answered using the provided context, provide the IT Support contact details from the end of the document: ITsupport@1440foods.com or (646) 809-0885."
+        """You are the 1440 Foods Technical Documentation Reconstructor. You reconstruct a step-by-step technical guide from visual inputs.
+        
+        Inputs you will receive:
+        PAGE MAPS: full-page document images (used to infer structure, title, step order, and layout/grid sequencing).
+        HIGH-RES ASSETS: cropped screenshots/images extracted from the document (used as the primary visuals to attach to steps).
+        
+        Goal
+        Given a user question plus the visual inputs, produce a clean instructional guide where each step's text is immediately followed by the most relevant HIGH‑RES ASSET SAS URL(s).
+        
+        Core rules (must follow)
+        Use PAGE MAPS for ordering only
+        Use the page maps to determine the correct reading/step sequence (including multi-column layouts and grids). Do not assume simple top-to-bottom order if the layout implies numbered/grouped steps.
+        
+        Action <-> Image binding is required
+        For every instruction/step you output, attach the best matching HIGH‑RES ASSET URL immediately after the step text using markdown image syntax: ![Step description](FULL_SAS_URL)
+        
+        IMPORTANT: Always use markdown image syntax format: ![alt text](url). Never output plain URLs. Use format like: ![Step 1 Visual](https://...)
+        
+        If multiple images are needed for the same step, include multiple markdown image links under that step.
+        If no suitable high-res asset exists, still output the step and write exactly: "Visual not available."
+        Literal URL passthrough (critical)
+        Do not modify SAS URLs in any way. Copy them exactly, including everything after ?. But always wrap them in markdown image syntax: ![description](FULL_SAS_URL)
+        
+        No administrative noise
+        Exclude headers, footers, page numbers, logos, revision tables, document control metadata, legal disclaimers—unless they are explicitly part of the procedure.
+        
+        No external knowledge / no guessing
+        Only use what is visible in the provided images.
+        
+        If text is unreadable and no clearer high-res asset exists: write exactly "Instruction unreadable in source."
+        If the user's request cannot be answered from the visuals: provide this fallback contact info only: ITsupport@1440foods.com or (646) 809-0885.
+        Do not reveal internal reasoning
+        Do not describe your chain-of-thought. Output only the final guide.
+        
+        Matching guidance (how to choose the right asset)
+        Prefer HIGH‑RES ASSETS that:
+        
+        contain the exact UI region referenced by the step,
+        show the key button/field/menu named in the step,
+        match the same page/section as the step (when inferable from layout).
+        """
     )
+
+
+def _build_page_maps_and_assets_content(
+    page_sas_urls: dict,
+    clean_images: List[Dict[str, Any]],
+    user_query: str,
+    max_images: int = 10,
+) -> List[Dict[str, Any]]:
+    """
+    Build content structure: PAGE MAPS first, then HIGH-RES ASSETS manifest.
+    Matches the notebook approach.
+    """
+    user_content: List[Dict[str, Any]] = []
+    
+    # Lead with Page Maps for Structure
+    user_content.append({"type": "text", "text": "### INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)"})
+    
+    for page_no, url in sorted(page_sas_urls.items()):
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": url, "detail": "high"}
+        })
+    
+    # Add the High-Res Asset Manifest
+    asset_manifest = "\n### INPUT TYPE 2: HIGH-RES ASSETS (INDIVIDUAL SCREENSHOTS)\n"
+    
+    for img in clean_images[:max_images]:
+        asset_manifest += f"Asset_ID: {img.get('id', 'unknown')} | Found on Page: {img.get('page', 0)}\nURL: {img.get('sas_url', '')}\n\n"
+    
+    user_content.append({
+        "type": "text",
+        "text": f"{asset_manifest}\n\n--- REASONING ENFORCEMENT ---\nBefore answering, analyze the grid layout in the Page Maps. Identify Step and explanations.\n\nUSER QUERY: {user_query}"
+    })
+    
+    return user_content
 
 
 def _restore_sas_tokens(answer: str, sas_urls: List[str], source_md: str) -> str:
@@ -232,40 +286,47 @@ def _restore_sas_tokens(answer: str, sas_urls: List[str], source_md: str) -> str
 
 def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str:
     """
-    Inference coordinator:
-    1. Primary: OpenAI GPT-4o
-    2. Fallback: Local Qwen-VL via vLLM
+    Inference coordinator with new page maps + high-res assets approach.
     """
     settings = get_settings()
     text_hit = retrieved_context.get("text")
     if not text_hit:
         return "No context found for the query."
 
-    sas_urls = retrieved_context.get("sas_urls") or []
-    full_md = text_hit.get("markdown") or ""
-    interleaved_content = _interleave_markdown_content(full_md, sas_urls=sas_urls, max_images=10, image_detail="low")
-    # Semi-static mapping for SAS URLs (cached prefix) if URLs are stable enough
-    if sas_urls:
-        mapping_text = "Reference SAS URLs:\n" + "\n".join(f"- {u}" for u in sas_urls[:10])
-        interleaved_content.insert(0, {"type": "text", "text": mapping_text})
+    meta = text_hit.get("metadata") or {}
+    
+    # NEW: Get page images and clean images from metadata
+    page_sas_urls = meta.get("page_images") or {}
+    clean_images = meta.get("clean_images") or []
+    
+    # Fallback to old approach if new data not available
+    if not page_sas_urls and not clean_images:
+        sas_urls = retrieved_context.get("sas_urls") or []
+        full_md = text_hit.get("markdown") or ""
+        interleaved_content = _interleave_markdown_content(full_md, sas_urls=sas_urls, max_images=10, image_detail="low")
+        if sas_urls:
+            mapping_text = "Reference SAS URLs:\n" + "\n".join(f"- {u}" for u in sas_urls[:10])
+            interleaved_content.insert(0, {"type": "text", "text": mapping_text})
+    else:
+        # NEW: Use page maps + high-res assets approach
+        user_content = _build_page_maps_and_assets_content(
+            page_sas_urls=page_sas_urls,
+            clean_images=clean_images,
+            user_query=user_query,
+            max_images=10,
+        )
+        interleaved_content = user_content
 
     system_prompt = _get_system_prompt()
 
-    # Messages ordered for cache friendliness: system + context (prefix), then dynamic query
-    responses_input = [
-        {"role": "system", "content": [{"type": "input_text", "text": system_prompt}]},
-        {"role": "user", "content": _to_response_content(interleaved_content)},  # cached prefix
-        {"role": "user", "content": [{"type": "input_text", "text": f"Technician Query: {user_query}"}]},  # dynamic
-    ]
-
-    # Primary: OpenAI GPT-5.2 snapshot (skip if running local-only or missing key)
+    # Primary: OpenAI GPT-5.2 snapshot
     if settings.openai_api_key and (not settings.openai_api_base or "localhost" not in settings.openai_api_base):
         attempts = 3
         last_err = None
         for attempt in range(attempts):
             try:
                 ts_print(
-                    f"Attempting primary inference with GPT-5.2-2025-12-11 "
+                    f"Attempting primary inference with GPT-5.2 "
                     f"(base={settings.openai_api_base or 'https://api.openai.com'}), "
                     f"attempt {attempt + 1}/{attempts}"
                 )
@@ -273,16 +334,35 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
                     api_key=settings.openai_api_key,
                     base_url=settings.openai_api_base or None,
                 )
+                
+                # Convert to API format matching notebook structure
+                api_content = []
+                for item in interleaved_content:
+                    if item.get("type") == "text":
+                        api_content.append({"type": "input_text", "text": item.get("text", "")})
+                    elif item.get("type") == "image_url":
+                        # Flatten the nested dict to just a string URL
+                        url = item.get("image_url", {}).get("url") if isinstance(item.get("image_url"), dict) else item.get("image_url")
+                        if url:
+                            api_content.append({"type": "input_image", "image_url": url})
+                
                 response = client.responses.create(
-                    model="gpt-5.2-2025-12-11",
+                    model="gpt-5.2",
+                    instructions=system_prompt,
                     input=[
-                        {"role": "system", "content": [{"type": "input_text", "text": system_prompt}]},
-                        {"role": "user", "content": _to_response_content(interleaved_content)},
-                        {"role": "user", "content": [{"type": "input_text", "text": f"Technician Query: {user_query}"}]},
+                        {
+                            "type": "message",
+                            "role": "user",
+                            "content": api_content
+                        }
                     ],
-                    temperature=0,
+                    reasoning={
+                        "effort": "high",
+                        "summary": "auto",
+                    },
                     timeout=300,
                 )
+                
                 # Log cache usage if available
                 try:
                     usage = getattr(response, "usage", None)
@@ -293,13 +373,16 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
                     pass
 
                 answer = response.output_text
+                # Restore SAS tokens if needed
+                sas_urls = meta.get("sas_urls") or []
+                full_md = text_hit.get("markdown") or ""
                 answer = _restore_sas_tokens(answer, sas_urls, full_md)
                 _write_model_answer(text_hit, answer)
-                ts_print("Primary inference succeeded (OpenAI GPT-5.2-2025-12-11)")
+                ts_print("Primary inference succeeded (OpenAI GPT-5.2)")
                 return answer
             except Exception as e:
                 last_err = e
-                ts_print(f"GPT-5.2-2025-12-11 failed on attempt {attempt + 1}/{attempts}: {e}")
+                ts_print(f"GPT-5.2 failed on attempt {attempt + 1}/{attempts}: {e}")
                 if attempt < attempts - 1:
                     time.sleep(3)
                     continue
