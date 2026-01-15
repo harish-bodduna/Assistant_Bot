@@ -30,6 +30,7 @@ dependencies = [
   "docling-core>=0.7.0",
   "imagehash>=4.3.1",
   "pymupdf>=1.23.0",
+  "pytesseract>=0.3.10",
 ]
 
 [tool.uv]

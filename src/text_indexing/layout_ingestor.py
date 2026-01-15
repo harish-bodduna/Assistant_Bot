@@ -1,30 +1,25 @@
 from __future__ import annotations
 
-import argparse
+import io
 import os
-import shutil
+import secrets
+import string
 import time
 from pathlib import Path
 from typing import Optional
 
+import pytesseract
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling_core.types.io import DocumentStream
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 
-from src.bridge.sharepoint_connector import SharePointConnector
-from src.config.settings import get_settings
 from src.text_indexing.doc_parser import parse_document
-from src.text_indexing.markdown_builder import render_markdown, write_outputs
+from src.text_indexing.image_filter import build_reference_hashes, capture_page_images
 from src.text_indexing.qdrant_writer import upsert_markdown
-from src.text_indexing.step_builder import build_steps
 from src.text_indexing.storage import AzureBlobStorage
-from src.text_indexing.image_filter import (
-    build_reference_hashes,
-    extract_and_filter_images,
-    capture_page_images,
-)
 
 # LlamaIndex embeddings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -51,7 +46,7 @@ def get_embed_model(force_hf: bool = True):
 
 
 class LayoutAwareIngestor:
-    """Use docling to convert PDF to markdown with inline image placeholders, store single doc."""
+    """Use docling to process PDFs and generate 7 required outputs following notebook logic."""
 
     def __init__(self, collection: str = "manuals_text", banned_images_dir: Optional[str] = None) -> None:
         self.collection = collection
@@ -61,13 +56,16 @@ class LayoutAwareIngestor:
             check_compatibility=False,
         )
         pipeline_options = PdfPipelineOptions()
-        pipeline_options.generate_picture_images = True  # extract UI crops
-        pipeline_options.generate_page_images = True  # NEW: generate full page images
-        pipeline_options.images_scale = 2.0  # high quality crops
+        pipeline_options.generate_picture_images = True
+        pipeline_options.images_scale = 2.0
+        pipeline_options.generate_page_images = True
+        pipeline_options.do_ocr = True
+        pipeline_options.do_table_structure = True
+        pipeline_options.generate_parsed_pages = True
         self.converter = DocumentConverter(
             format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)}
         )
-        self.blob_container = os.getenv("AZURE_STORAGE_CONTAINER", "manual-images")
+        self.blob_container = os.getenv("AZURE_STORAGE_CONTAINER", "dummy")
         conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
         if not conn_str:
             raise RuntimeError("AZURE_STORAGE_CONNECTION_STRING is required for Azure blob uploads")
@@ -102,192 +100,126 @@ class LayoutAwareIngestor:
             )
 
     def index_pdf(self, pdf_bytes: bytes, file_name: str) -> None:
+        """Process PDF and generate 7 required outputs following notebook logic."""
         ts_print(f"Parsing {file_name} with component extraction")
         
-        # Convert with docling first to get conversion result for page images
-        from docling_core.types.io import DocumentStream
-        import io
+        # Convert with docling to get conversion result
+        # Note: We reuse self.converter from __init__ (created once and reused for efficiency),
+        # but each PDF needs its own DocumentStream instance to process the PDF bytes
         ds = DocumentStream(name=file_name, stream=io.BytesIO(pdf_bytes))
         conv_res = self.converter.convert(ds)
+        doc = conv_res.document
         
-        # Parse document structure
-        doc, collected = parse_document(self.converter, pdf_bytes, file_name)
-
-        # Prepare per-document export folder
+        if not doc:
+            raise RuntimeError("Docling conversion returned no document")
+        
+        # Parse document structure (already filters images with phash)
+        doc, collected = parse_document(
+            doc,
+            banned_hashes=self.banned_hashes,
+            phash_threshold=15,
+        )
+        
+        # Get safe base name for blob storage
         safe_base = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in Path(file_name).stem)
-        export_root = Path("markdown_exports")
-        doc_dir = export_root / safe_base
-        fig_dir = doc_dir / "images"
-        if doc_dir.exists():
-            shutil.rmtree(doc_dir)
-        fig_dir.mkdir(parents=True, exist_ok=True)
-
-        try:
-            # NEW: Capture full page images (the "Map")
-            page_sas_urls = capture_page_images(conv_res, self.storage, safe_base)
-            ts_print(f"Captured {len(page_sas_urls)} page images")
-
-            # NEW: Extract and filter images using fitz
-            clean_images = extract_and_filter_images(
-                pdf_bytes=pdf_bytes,
-                banned_hashes=self.banned_hashes,
-                threshold=5,
-                scale_factor=3.0,
-            )
-            ts_print(f"Extracted {len(clean_images)} clean images after filtering")
-
-            # Upload clean images and get SAS URLs
-            for img_data in clean_images:
-                pil_img = img_data["image"]
+        project_name = os.getenv("AZURE_STORAGE_PROJECT_NAME", "dummy")
+        storage_base_path = f"{project_name}/processed_images"
+        
+        # Capture page images from docling
+        page_sas_urls = capture_page_images(conv_res, self.storage, safe_base)
+        ts_print(f"Captured {len(page_sas_urls)} page images")
+        
+        # Get pages count
+        pages_count = len(getattr(doc, "pages", {}) or {})
+        
+        # Get raw text from document (for embedding/search)
+        raw_text_parts = []
+        for item in collected:
+            if item["type"] == "text":
+                raw_text_parts.append(item["content"])
+        raw_text = "\n".join(raw_text_parts)
+        
+        # Containers for both markdown versions
+        ocr_structural_markdown = []  # Version A: OCR Placeholders for reasoning
+        final_sas_markdown = []       # Version B: The SAS URL version
+        asset_manifest_data = []      # The "Bridge" mapping table
+        vision_sas_urls = []          # For the model's visual input
+        
+        # Process collected items in order
+        for item in collected:
+            if item["type"] == "text":
+                content = item["content"]
+                ocr_structural_markdown.append(f"[DOC_TEXT]: {content}")
+                final_sas_markdown.append(content)
+            
+            elif item["type"] == "image":
+                pil_img = item["image"]
+                page = item.get("page", 0)
+                
+                # Generate the Shared ID
+                unique_hex = ''.join(secrets.choice(string.hexdigits.lower()) for _ in range(4))
+                asset_id = f"ASSET_{unique_hex}"
+                
+                # OCR Extraction
+                try:
+                    ocr_text = pytesseract.image_to_string(pil_img).strip().replace("\n", " ")
+                except Exception:
+                    ocr_text = "[No readable text found]"
+                
+                # Upload image and get SAS URL
                 img_byte_arr = io.BytesIO()
                 pil_img.save(img_byte_arr, format='PNG')
-                blob_name = f"{safe_base}/images/Image_{img_data['id']}.png"
-                sas_url = self.storage.upload_and_get_sas(img_byte_arr.getvalue(), blob_name, days=365)
-                img_data["sas_url"] = sas_url
-                img_data["filename"] = blob_name
-
-            # Build steps from collected items
-            ordered_steps = build_steps(collected)
-            
-            # Render markdown (now includes both docling images and fitz-extracted images)
-            full_markdown, embed_markdown, sas_urls, fig_meta = render_markdown(
-                ordered_steps=ordered_steps,
-                safe_base=safe_base,
-                fig_dir=fig_dir,
-                storage=self.storage,
-                clean_images=clean_images,  # NEW: pass clean images
-            )
-            
-            md_output_path, md_sas, meta_sas = write_outputs(
-                doc_dir=doc_dir,
-                full_markdown=full_markdown,
-                embed_markdown=embed_markdown,
-                file_name=file_name,
-                sas_urls=sas_urls,
-                fig_meta=fig_meta,
-                storage=self.storage,
-            )
-            ts_print(
-                f"Wrote markdown to {md_output_path} with {len(fig_meta)} figures and {len(sas_urls)} SAS URLs"
-            )
-
-            payload = {
-                "file_name": file_name,
-                "total_pages": len(getattr(doc, "pages", []) or []),
-                "text": embed_markdown,  # URL-free for embeddings
-                "llm_markdown": full_markdown,  # SAS-ready for LLM context
-                "sas_urls": sas_urls,
-                "fig_images": fig_meta,
-                "page_images": page_sas_urls,  # NEW: store page images
-                "clean_images": [  # NEW: store clean high-res images
-                    {
-                        "id": img["id"],
-                        "sas_url": img["sas_url"],
-                        "page": img["page"],
-                        "filename": img["filename"],
-                    }
-                    for img in clean_images
-                ],
-                "markdown_path": str(md_output_path),
-                "markdown_sas": md_sas,
-                "metadata_sas": meta_sas,
-                "doc_type": "markdown_bridge",
-            }
-            upsert_markdown(self.client, self.collection, self.embed, embed_markdown, payload)
-        except Exception as exc:
-            ts_print(f"Ingestion failed for {file_name}: {exc}")
-            raise
-
-
-def ingest_one_pdf(file_id: Optional[str] = None, folder_path: Optional[str] = "Shared Documents", banned_images_dir: Optional[str] = None) -> None:
-    settings = get_settings()
-    sp = SharePointConnector(
-        tenant_id=settings.azure_tenant_id,
-        client_id=settings.azure_client_id,
-        client_secret=settings.azure_client_secret,
-        site_id=settings.sharepoint_site_id,
-        drive_id=settings.sharepoint_drive_id,
-    )
-    files = sp.list_files(folder_path=folder_path or settings.sharepoint_folder_path or "Documents")
-    target = None
-    if file_id:
-        for f in files:
-            fid = f.get("id") if isinstance(f, dict) else getattr(f, "id", None)
-            if fid == file_id:
-                target = f
-                break
-    else:
-        # pick first PDF
-        for f in files:
-            name = f.get("name") if isinstance(f, dict) else getattr(f, "name", "") or ""
-            if name.lower().endswith(".pdf"):
-                target = f
-                break
-    if not target:
-        raise RuntimeError("No PDF found in SharePoint folder.")
-
-    pdf_id = target.get("id") if isinstance(target, dict) else getattr(target, "id", None)
-    pdf_name = target.get("name") if isinstance(target, dict) else getattr(target, "name", "manual.pdf")
-    ts_print(f"Selected PDF {pdf_name} ({pdf_id})")
-    try:
-        pdf_bytes = sp.get_file_stream(pdf_id)
-    except Exception as exc:
-        ts_print(f"Failed to download PDF: {exc}")
-        return
-
-    ingestor = LayoutAwareIngestor(collection="manuals_text", banned_images_dir=banned_images_dir)
-    try:
-        ingestor.index_pdf(pdf_bytes, file_name=pdf_name)
-        ts_print("Ingestion complete.")
-    except Exception as exc:
-        ts_print(f"Ingestion failed: {exc}")
-
-
-def ingest_all_pdfs(folder_path: Optional[str] = "Shared Documents", banned_images_dir: Optional[str] = None) -> None:
-    """Ingest all PDFs in the given folder using the layout-aware pipeline."""
-    settings = get_settings()
-    sp = SharePointConnector(
-        tenant_id=settings.azure_tenant_id,
-        client_id=settings.azure_client_id,
-        client_secret=settings.azure_client_secret,
-        site_id=settings.sharepoint_site_id,
-        drive_id=settings.sharepoint_drive_id,
-    )
-    files = sp.list_files(folder_path=folder_path or settings.sharepoint_folder_path or "Documents")
-    pdfs = [
-        f
-        for f in files
-        if (f.get("name") if isinstance(f, dict) else getattr(f, "name", "") or "").lower().endswith(".pdf")
-    ]
-    if not pdfs:
-        raise RuntimeError("No PDFs found in SharePoint folder.")
-
-    ingestor = LayoutAwareIngestor(collection="manuals_text", banned_images_dir=banned_images_dir)
-
-    for f in pdfs:
-        pdf_id = f.get("id") if isinstance(f, dict) else getattr(f, "id", None)
-        pdf_name = f.get("name") if isinstance(f, dict) else getattr(f, "name", "manual.pdf")
-        ts_print(f"Selected PDF {pdf_name} ({pdf_id})")
-        try:
-            pdf_bytes = sp.get_file_stream(pdf_id)
-            ingestor.index_pdf(pdf_bytes, file_name=pdf_name)
-        except Exception as exc:
-            ts_print(f"Skipping {pdf_name} due to error: {exc}")
-    ts_print(f"Ingestion complete for {len(pdfs)} PDF(s).")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ingest PDFs from SharePoint")
-    parser.add_argument("folder", nargs="?", default="Shared Documents", help="Folder path in SharePoint")
-    parser.add_argument("--file-id", dest="file_id", help="Specific file ID to ingest")
-    parser.add_argument("--all", dest="ingest_all", action="store_true", help="Ingest all PDFs in folder")
-    parser.add_argument("--banned-images-dir", dest="banned_images_dir", help="Directory containing banned reference images")
-    args = parser.parse_args()
-
-    start = time.time()
-    if args.ingest_all:
-        ingest_all_pdfs(folder_path=args.folder, banned_images_dir=args.banned_images_dir)
-    else:
-        ingest_one_pdf(file_id=args.file_id, folder_path=args.folder, banned_images_dir=args.banned_images_dir)
-    ts_print(f"Done in {time.time() - start:.2f}s")
-
+                img_bytes = img_byte_arr.getvalue()
+                
+                filename = f"visual_{unique_hex}_page_{page}.png"
+                blob_path = f"{storage_base_path}/{filename}"
+                
+                sas_url = self.storage.upload_and_get_sas(img_bytes, blob_path, days=365)
+                
+                # Populate Both Markdown Versions
+                
+                # A. The OCR Version
+                img_placeholder = (
+                    f"\n--- IMAGE OCR PLACEHOLDER ---\n"
+                    f"SOURCE_ID: {asset_id}\n"
+                    f"TEXT_FOUND_IN_IMAGE: {ocr_text}\n"
+                    f"--- END OCR PLACEHOLDER ---\n"
+                )
+                ocr_structural_markdown.append(img_placeholder)
+                
+                # B. The SAS URL Version (Interleaved images with clickable links)
+                final_sas_markdown.append(f"![Document Visual {unique_hex}]({sas_url})")
+                
+                # C. The Manifest dict
+                asset_manifest_data.append({
+                    "id": asset_id,
+                    "ocr": ocr_text,
+                    "url": sas_url
+                })
+                vision_sas_urls.append(sas_url)
+        
+        # Final Strings
+        llm_reasoning_draft = "\n".join(ocr_structural_markdown)
+        llm_ready_sas_markdown = "\n\n".join(final_sas_markdown)
+        
+        ts_print(f"Generated {len(asset_manifest_data)} image assets with OCR")
+        ts_print(f"Generated {len(vision_sas_urls)} visual SAS URLs")
+        
+        # Prepare payload with all 7 required fields
+        payload = {
+            "file_name": file_name,
+            "llm_reasoning_draft": llm_reasoning_draft,
+            "llm_ready_sas_markdown": llm_ready_sas_markdown,
+            "manifest": asset_manifest_data,
+            "visual_sas_urls": vision_sas_urls,
+            "page_images": page_sas_urls,  # Dict mapping page_no -> SAS URL
+            "pages_count": pages_count,
+            "raw_text": raw_text,  # For embedding/search
+        }
+        
+        # Use raw_text for embedding (URL-free text)
+        # Note: raw_text is passed separately to upsert_markdown as embed_markdown parameter
+        # because it's used to generate the embedding vector (needs clean text without URLs).
+        # The payload also contains raw_text (along with all 6 other fields) for storage and retrieval.
+        # This design allows us to use clean text for embeddings while storing the full payload.
+        upsert_markdown(self.client, self.collection, self.embed, raw_text, payload)

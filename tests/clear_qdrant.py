@@ -1,18 +1,25 @@
 """
-Script to clear all documents from Qdrant collection.
+Utility script to clear all documents from Qdrant collection.
 """
-import os
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from dotenv import load_dotenv
+from src.config.settings import get_settings
 
-load_dotenv()
 
-def clear_qdrant_collection(collection_name: str = "manuals_text"):
+def clear_qdrant_collection(collection_name: str = "manuals_text") -> None:
     """Delete all points from a Qdrant collection."""
+    settings = get_settings()
     client = QdrantClient(
-        url=os.getenv("QDRANT_URL", "http://localhost:6333"),
-        api_key=os.getenv("QDRANT_API_KEY"),
+        url=settings.qdrant_url,
+        api_key=settings.qdrant_api_key,
         check_compatibility=False,
     )
     
@@ -69,6 +76,7 @@ def clear_qdrant_collection(collection_name: str = "manuals_text"):
     # Verify
     coll_info = client.get_collection(collection_name)
     print(f"Collection now has {coll_info.points_count} points.")
+
 
 if __name__ == "__main__":
     clear_qdrant_collection("manuals_text")

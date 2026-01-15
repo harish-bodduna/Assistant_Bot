@@ -6,6 +6,9 @@ from typing import Any, Dict, Optional
 
 from datetime import datetime
 
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
+
 from src.bridge.sharepoint_connector import SharePointConnector
 from src.config.settings import get_settings
 from src.text_indexing.layout_ingestor import LayoutAwareIngestor
@@ -13,6 +16,69 @@ from src.text_indexing.layout_ingestor import LayoutAwareIngestor
 
 def ts_print(msg: str) -> None:
     print(f"[{datetime.now().isoformat()}] {msg}")
+
+
+def _clear_qdrant_collection(collection_name: str = "manuals_text") -> None:
+    """Clear all points from a Qdrant collection before reingestion."""
+    client = QdrantClient(
+        url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+        api_key=os.getenv("QDRANT_API_KEY"),
+        check_compatibility=False,
+    )
+    
+    if not client.collection_exists(collection_name):
+        ts_print(f"Collection '{collection_name}' does not exist. Nothing to clear.")
+        return
+    
+    # Get collection info
+    coll_info = client.get_collection(collection_name)
+    point_count = coll_info.points_count
+    ts_print(f"Collection '{collection_name}' has {point_count} points.")
+    
+    if point_count == 0:
+        ts_print("Collection is already empty.")
+        return
+    
+    # Delete all points by scrolling and deleting
+    ts_print(f"Deleting all points from '{collection_name}'...")
+    
+    # Scroll through all points and collect IDs
+    all_ids = []
+    offset = None
+    while True:
+        result = client.scroll(
+            collection_name=collection_name,
+            limit=100,
+            offset=offset,
+            with_payload=False,
+            with_vectors=False,
+        )
+        points, next_offset = result
+        
+        if not points:
+            break
+            
+        all_ids.extend([point.id for point in points])
+        
+        if next_offset is None:
+            break
+        offset = next_offset
+    
+    # Delete all points
+    if all_ids:
+        client.delete(
+            collection_name=collection_name,
+            points_selector=models.PointIdsList(
+                points=all_ids
+            )
+        )
+        ts_print(f"Deleted {len(all_ids)} points from '{collection_name}'.")
+    else:
+        ts_print("No points found to delete.")
+    
+    # Verify
+    coll_info = client.get_collection(collection_name)
+    ts_print(f"Collection now has {coll_info.points_count} points.")
 
 
 def _save_pdf_to_local(pdf_bytes: bytes, pdf_name: str) -> Path:
