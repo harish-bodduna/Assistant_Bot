@@ -8,7 +8,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
-import pytesseract
+import fitz  # PyMuPDF
+import imagehash
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
@@ -17,7 +18,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 
 from src.text_indexing.doc_parser import parse_document
-from src.text_indexing.image_filter import build_reference_hashes, capture_page_images
+from src.text_indexing.image_filter import build_reference_hashes, capture_page_images, get_enhanced_image
 from src.text_indexing.qdrant_writer import upsert_markdown
 from src.text_indexing.storage import AzureBlobStorage
 
@@ -46,7 +47,13 @@ def get_embed_model(force_hf: bool = True):
 
 
 class LayoutAwareIngestor:
-    """Use docling to process PDFs and generate 7 required outputs following notebook logic."""
+    """Use docling + PyMuPDF to process PDFs following Document_parsing-2.ipynb logic.
+    
+    Generates:
+    - page_images: Full-page images (page maps) for structure inference
+    - high_res_assets: Enhanced cropped images extracted via PyMuPDF
+    - raw_text: Clean text for embedding/search
+    """
 
     def __init__(self, collection: str = "manuals_text", banned_images_dir: Optional[str] = None) -> None:
         self.collection = collection
@@ -125,8 +132,8 @@ class LayoutAwareIngestor:
         project_name = os.getenv("AZURE_STORAGE_PROJECT_NAME", "dummy")
         storage_base_path = f"{project_name}/processed_images"
         
-        # Capture page images from docling
-        page_sas_urls = capture_page_images(conv_res, self.storage, safe_base)
+        # Capture page images from docling (matching notebook: project_name/pages/page_X.png)
+        page_sas_urls = capture_page_images(conv_res, self.storage, project_name)
         ts_print(f"Captured {len(page_sas_urls)} page images")
         
         # Get pages count
@@ -139,80 +146,58 @@ class LayoutAwareIngestor:
                 raw_text_parts.append(item["content"])
         raw_text = "\n".join(raw_text_parts)
         
-        # Containers for both markdown versions
-        ocr_structural_markdown = []  # Version A: OCR Placeholders for reasoning
-        final_sas_markdown = []       # Version B: The SAS URL version
-        asset_manifest_data = []      # The "Bridge" mapping table
-        vision_sas_urls = []          # For the model's visual input
+        # Extract high-res images using PyMuPDF (Document_parsing-2 approach)
+        ts_print("Extracting high-res images using PyMuPDF")
+        high_res_assets = []
+        scale_factor = 3.0
         
-        # Process collected items in order
-        for item in collected:
-            if item["type"] == "text":
-                content = item["content"]
-                ocr_structural_markdown.append(f"[DOC_TEXT]: {content}")
-                final_sas_markdown.append(content)
-            
-            elif item["type"] == "image":
-                pil_img = item["image"]
-                page = item.get("page", 0)
+        # Open PDF with PyMuPDF for image extraction
+        pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        
+        for p_idx in range(len(pdf_doc)):
+            page = pdf_doc.load_page(p_idx)
+            for img_info in page.get_image_info():
+                bbox = img_info["bbox"]
                 
-                # Generate the Shared ID
-                unique_hex = ''.join(secrets.choice(string.hexdigits.lower()) for _ in range(4))
-                asset_id = f"ASSET_{unique_hex}"
+                # Convert to PIL for filtering
+                pil_img = get_enhanced_image(page, bbox, scale=scale_factor)
+                curr_hash = imagehash.phash(pil_img)
                 
-                # OCR Extraction
-                try:
-                    ocr_text = pytesseract.image_to_string(pil_img).strip().replace("\n", " ")
-                except Exception:
-                    ocr_text = "[No readable text found]"
+                # Filter banned images
+                is_match = any((curr_hash - ref) < 15 for ref in self.banned_hashes)
+                if is_match:
+                    ts_print(f"[-] ELUDED: Matched banned reference on page {p_idx + 1}")
+                    continue
                 
-                # Upload image and get SAS URL
+                # Generate unique ID
+                image_idx = ''.join(secrets.choice(string.hexdigits.lower()) for _ in range(4))
+                
+                # Prepare for upload
                 img_byte_arr = io.BytesIO()
                 pil_img.save(img_byte_arr, format='PNG')
-                img_bytes = img_byte_arr.getvalue()
+                blob_name = f"Image_{image_idx}.png"
+                blob_path = f"{storage_base_path}/{blob_name}"
                 
-                filename = f"visual_{unique_hex}_page_{page}.png"
-                blob_path = f"{storage_base_path}/{filename}"
+                # Upload and get SAS URL
+                sas_url = self.storage.upload_and_get_sas(img_byte_arr.getvalue(), blob_path, days=365)
                 
-                sas_url = self.storage.upload_and_get_sas(img_bytes, blob_path, days=365)
-                
-                # Populate Both Markdown Versions
-                
-                # A. The OCR Version
-                img_placeholder = (
-                    f"\n--- IMAGE OCR PLACEHOLDER ---\n"
-                    f"SOURCE_ID: {asset_id}\n"
-                    f"TEXT_FOUND_IN_IMAGE: {ocr_text}\n"
-                    f"--- END OCR PLACEHOLDER ---\n"
-                )
-                ocr_structural_markdown.append(img_placeholder)
-                
-                # B. The SAS URL Version (Interleaved images with clickable links)
-                final_sas_markdown.append(f"![Document Visual {unique_hex}]({sas_url})")
-                
-                # C. The Manifest dict
-                asset_manifest_data.append({
-                    "id": asset_id,
-                    "ocr": ocr_text,
-                    "url": sas_url
+                # Store in clean_images format (matching notebook)
+                high_res_assets.append({
+                    "sas_url": sas_url,
+                    "page": p_idx + 1,
+                    "id": image_idx,
+                    "filename": blob_name
                 })
-                vision_sas_urls.append(sas_url)
         
-        # Final Strings
-        llm_reasoning_draft = "\n".join(ocr_structural_markdown)
-        llm_ready_sas_markdown = "\n\n".join(final_sas_markdown)
+        pdf_doc.close()
         
-        ts_print(f"Generated {len(asset_manifest_data)} image assets with OCR")
-        ts_print(f"Generated {len(vision_sas_urls)} visual SAS URLs")
+        ts_print(f"Extracted {len(high_res_assets)} high-res assets using PyMuPDF")
         
-        # Prepare payload with all 7 required fields
+        # Prepare payload matching Document_parsing-2 format
         payload = {
             "file_name": file_name,
-            "llm_reasoning_draft": llm_reasoning_draft,
-            "llm_ready_sas_markdown": llm_ready_sas_markdown,
-            "manifest": asset_manifest_data,
-            "visual_sas_urls": vision_sas_urls,
-            "page_images": page_sas_urls,  # Dict mapping page_no -> SAS URL
+            "page_images": page_sas_urls,  # Dict mapping page_no -> SAS URL (page maps)
+            "high_res_assets": high_res_assets,  # List of {id, page, sas_url, filename}
             "pages_count": pages_count,
             "raw_text": raw_text,  # For embedding/search
         }

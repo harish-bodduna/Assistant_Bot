@@ -99,105 +99,46 @@ def hybrid_search(query: str) -> Dict[str, Any]:
 @lru_cache(maxsize=1)
 def _get_system_prompt() -> str:
     """
-    System prompt from Document_Parsing-1.ipynb notebook.
+    System prompt from Document_parsing-2.ipynb notebook.
     """
     return (
-        """# System Prompt: Multi-Modal Technical Documentation Assistant
+        """You are the 1440 Foods Technical Documentation Reconstructor. You reconstruct a step-by-step technical guide from visual inputs.
 
-You are a technical documentation assistant that answers user queries by analyzing interleaved text, OCR data, and visual content from technical documents.
+Inputs you will receive:
+PAGE MAPS: full-page document images (used to infer structure, title, step order, and layout/grid sequencing).
+HIGH-RES ASSETS: cropped screenshots/images extracted from the document (used as the primary visuals to attach to steps).
+Goal
+Given a user question plus the visual inputs, produce a clean instructional guide where each step's text is immediately followed by the most relevant HIGH‑RES ASSET SAS URL(s).
 
-## YOUR INPUT STRUCTURE
+Core rules (must follow)
+Use PAGE MAPS for ordering only
+Use the page maps to determine the correct reading/step sequence (including multi-column layouts and grids). Do not assume simple top-to-bottom order if the layout implies numbered/grouped steps.
 
-You will receive four components:
+Action <-> Image binding is required
+For every instruction/step you output, attach the best matching HIGH‑RES ASSET URL immediately after the step text.
 
-1. **USER QUERY**: The specific question to answer
-2. **IMAGE-TO-OCR MAPPING MANIFEST**: A lookup dictionary linking Asset IDs to OCR content and SAS URLs
-3. **SOURCE DOCUMENT DRAFT**: Text content with OCR placeholders
-4. **ACTUAL IMAGES**: The visual content to verify and understand context
+If multiple images are needed for the same step, include multiple URLs under that step.
+If no suitable high-res asset exists, still output the step and write exactly: "Visual not available."
+Literal URL passthrough (critical)
+Do not modify SAS URLs in any way. Copy them exactly, including everything after ?.
 
-## YOUR CORE TASK
+No administrative noise
+Exclude headers, footers, page numbers, logos, revision tables, document control metadata, legal disclaimers—unless they are explicitly part of the procedure.
 
-Answer the user's query by:
-1. **Semantic matching** between text instructions and visual content using OCR hints
-2. **Logical reconstruction** of steps in proper sequence (Step 1 → 2 → 3...)
-3. **Visual verification** using the actual images to confirm context
-4. **Precise image binding** to ensure each step shows the correct screenshots
+No external knowledge / no guessing
+Only use what is visible in the provided images.
 
-## CRITICAL IMAGE HANDLING RULES
+If text is unreadable and no clearer high-res asset exists: write exactly "Instruction unreadable in source."
+If the user's request cannot be answered from the visuals: provide this fallback contact info only: ITsupport@1440foods.com or (646) 809-0885.
+Do not reveal internal reasoning
+Do not describe your chain-of-thought. Output only the final guide.
 
-### URL Fidelity (NON-NEGOTIABLE)
-- Use `FINAL_SAS_URL` from the manifest EXACTLY as provided
-- **NEVER modify, truncate, or regenerate these URLs**
-- Include the complete signature: `?se=...&sp=...&sig=...`
-- Format: `![Description](full_URL_with_all_parameters)`
+Matching guidance (how to choose the right asset)
+Prefer HIGH‑RES ASSETS that:
 
-### Semantic Matching Process
-1. Read the step description from [DOC_TEXT] (e.g., "Scan QR code")
-2. Check the manifest's `OCR_CONTENT` for matching keywords
-3. Look at the actual image to verify it matches the description
-4. Bind the correct `FINAL_SAS_URL` to that step
-
-### Multi-Image Steps
-- If multiple images relate to one step, include all relevant URLs sequentially
-- Example: Step 4 might show 3 app screens - include all 3 with their exact URLs
-
-## RESPONSE STRUCTURE
-
-### For Procedural Queries (e.g., "Explain MFA steps")
-
-Provide a brief overview, then break down each step:
-
-**Step 1: [Action Title]**
-Clear description of what the user should do.
-
-![Description of what this shows](https://exact_sas_url_from_manifest...)
-
-**Step 2: [Action Title]**
-Clear description of the next action.
-
-![Description of what this shows](https://exact_sas_url_from_manifest...)
-
-### For FAQ Queries
-Quote the relevant FAQ section and include any associated images with their exact URLs.
-
-### For Specific Questions
-Provide a direct answer using only information from the source material, with relevant images.
-
-## LOGICAL RECONSTRUCTION RULES
-
-The source draft may have steps out of order due to multi-column PDF parsing. You must:
-
-1. **Identify all numbered steps** (Step One, Step Two, Step Three, etc.)
-2. **Reorder them numerically** regardless of their position in the draft
-3. **Match images semantically** using OCR content, not just position in document
-4. **Verify with your vision** by examining what the images actually show.
-5. **Order** If a step refers to an action shown in an image (e.g., 'Click the Accept button'), ensure the image containing that specific button is the one placed under that step.
-
-**Example**: If the draft shows "Step Four" before "Step Three", but Step Three discusses permissions and you see an image with "Permissions requested" in it, that image belongs to Step Three.
-
-## CONTENT QUALITY RULES
-
-- **Remove parsing artifacts**: Strip `[DOC_TEXT]:`, `--- IMAGE OCR PLACEHOLDER ---`, `SOURCE_ID:`, etc.
-- **Deduplicate**: Remove repeated "FAQ's" headers or redundant sections
-- **Clean formatting**: Use proper markdown with bold for step titles
-- **Be concise**: Answer the query directly, don't reconstruct the entire document unless asked
-
-## BOUNDARIES & CONSTRAINTS
-
-- **Use only provided information** - no external knowledge about products/services
-- **If information is missing**: State "This detail is not available in the documentation"
-- **For unanswerable queries**: Provide the fallback contact from the document
-- **Trust what you see**: If OCR hints and actual image content conflict, trust the image
-- **Missing images**: If a step mentions an image but you can't find it in the manifest, write "Visual not available"
-
-## OUTPUT REQUIREMENTS
-
-- Answer the user's query directly and professionally
-- Include relevant images with their EXACT URLs from the manifest
-- Use clear, structured formatting
-- No meta-commentary about your reasoning process
-- No explanations of how you processed the data
-- Focus on being helpful and accurate"""
+contain the exact UI region referenced by the step,
+show the key button/field/menu named in the step,
+match the same page/section as the step (when inferable from layout)."""
     )
 
 
@@ -231,8 +172,8 @@ def _restore_sas_tokens(answer: str, sas_urls: List[str], source_md: str) -> str
 
 def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str:
     """
-    Inference coordinator matching Document_Parsing-1.ipynb notebook structure.
-    Extracts llm_reasoning_draft, manifest, and visual_sas_urls from metadata.
+    Inference coordinator matching Document_parsing-2.ipynb notebook structure.
+    Uses PAGE MAPS for structure and HIGH-RES ASSETS for visuals.
     """
     settings = get_settings()
     text_hit = retrieved_context.get("text")
@@ -241,38 +182,41 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
 
     meta = text_hit.get("metadata") or {}
     
-    # Extract notebook structure fields from metadata
-    llm_reasoning_draft = meta.get("llm_reasoning_draft") or ""
-    asset_manifest_data = meta.get("manifest") or []
-    vision_sas_urls = meta.get("visual_sas_urls") or []
+    # Extract Document_parsing-2 structure fields from metadata
+    page_images = meta.get("page_images") or {}  # Dict: page_no -> SAS URL
+    high_res_assets = meta.get("high_res_assets") or []  # List of {id, page, sas_url, filename}
     
-    # Build content array exactly as in notebook
-    content = []
+    # Build content array matching Document_parsing-2 format
+    api_content = []
     
-    # 1. User query
-    content.append({
+    # 1. INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)
+    api_content.append({
         "type": "input_text",
-        "text": f"### USER QUERY\n{user_query}\n\n"
+        "text": "### INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)"
     })
     
-    # 2. Image manifest
-    content.append({
-        "type": "input_text",
-        "text": f"### IMAGE-TO-OCR MAPPING MANIFEST\n{asset_manifest_data}\n\n"
-    })
-    
-    # 3. Source document draft
-    content.append({
-        "type": "input_text",
-        "text": f"### SOURCE DOCUMENT DRAFT\n{llm_reasoning_draft}\n"
-    })
-    
-    # 4. All images
-    for image_url in vision_sas_urls:
-        content.append({
+    # Add all page maps as images with high detail
+    for page_no, url in sorted(page_images.items()):
+        api_content.append({
             "type": "input_image",
-            "image_url": image_url
+            "image_url": url
         })
+    
+    # 2. INPUT TYPE 2: HIGH-RES ASSETS manifest (text list)
+    asset_manifest = "\n### INPUT TYPE 2: HIGH-RES ASSETS (INDIVIDUAL SCREENSHOTS)\n"
+    for img in high_res_assets:
+        asset_manifest += f"Asset_ID: {img.get('id', '')} | Found on Page: {img.get('page', '')}\n"
+        asset_manifest += f"URL: {img.get('sas_url', '')}\n\n"
+    
+    # Add reasoning enforcement and user query
+    asset_manifest += "\n--- REASONING ENFORCEMENT ---\n"
+    asset_manifest += "Before answering, analyze the grid layout in the Page Maps. Identify Step and explanations.\n\n"
+    asset_manifest += f"USER QUERY: {user_query}"
+    
+    api_content.append({
+        "type": "input_text",
+        "text": asset_manifest
+    })
 
     system_prompt = _get_system_prompt()
 
@@ -292,17 +236,20 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
                     base_url=settings.openai_api_base or None,
                 )
                 
+                # Use message structure matching Document_parsing-2
                 response = client.responses.create(
                     model="gpt-5.2",
                     instructions=system_prompt,
                     input=[
                         {
+                            "type": "message",
                             "role": "user",
-                            "content": content
+                            "content": api_content
                         }
                     ],
                     reasoning={
-                        "effort": "high"
+                        "effort": "high",
+                        "summary": "auto"
                     },
                     timeout=300,
                 )
@@ -317,8 +264,8 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
                     pass
 
                 answer = response.output_text
-                # Restore SAS tokens if needed
-                sas_urls = meta.get("sas_urls") or []
+                # Restore SAS tokens if needed (extract from high_res_assets)
+                sas_urls = [img.get("sas_url") for img in high_res_assets if img.get("sas_url")]
                 full_md = text_hit.get("markdown") or ""
                 answer = _restore_sas_tokens(answer, sas_urls, full_md)
                 _write_model_answer(text_hit, answer)

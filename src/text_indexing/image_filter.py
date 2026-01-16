@@ -4,6 +4,7 @@ import io
 import os
 from typing import List
 
+import fitz  # PyMuPDF
 import imagehash
 from PIL import Image
 
@@ -36,16 +37,47 @@ def build_reference_hashes(ref_dir: str) -> List[imagehash.ImageHash]:
     return ref_hashes
 
 
+def get_enhanced_image(page, bbox, scale: float = 3.0) -> Image.Image:
+    """
+    Renders a specific area of a PDF page at a higher resolution.
+    scale=3.0 effectively triples the DPI (e.g., from 72 to 216 DPI).
+    
+    Args:
+        page: PyMuPDF page object
+        bbox: Bounding box tuple (x0, y0, x1, y1) defining the area to extract
+        scale: Scale factor for resolution enhancement (default 3.0)
+        
+    Returns:
+        PIL Image of the enhanced/extracted region
+    """
+    # 1. Set the zoom/scale factor
+    mat = fitz.Matrix(scale, scale)
+    
+    # 2. Render only the bounding box area of the image
+    # We add a tiny 2-pixel padding to ensure no edges are cut off
+    pix = page.get_pixmap(matrix=mat, clip=bbox, alpha=False)
+    
+    # 3. Convert to PIL Image
+    img_data = pix.tobytes("png")
+    return Image.open(io.BytesIO(img_data))
+
+
 def capture_page_images(
     doc_result,
     storage: AzureBlobStorage,
-    safe_base: str,
+    project_name: str,
 ) -> dict:
     """
     Capture full page images from docling result and upload to blob storage.
+    Matches Document_parsing-2.ipynb structure: {project_name}/pages/page_{page_no}.png
     
+    Args:
+        doc_result: Docling conversion result
+        storage: AzureBlobStorage instance
+        project_name: Project name for blob path (e.g., "dummy")
+        
     Returns:
-        Dict mapping page_no -> SAS URL
+        Dict mapping page_no (int) -> SAS URL
     """
     page_sas_urls: dict = {}
     
@@ -54,7 +86,8 @@ def capture_page_images(
             img_byte_arr = io.BytesIO()
             page.image.pil_image.save(img_byte_arr, format='PNG')
             
-            blob_name = f"{safe_base}/pages/page_{page_no}.png"
+            # Match notebook structure: {project_name}/pages/page_{page_no}.png
+            blob_name = f"{project_name}/pages/page_{page_no}.png"
             sas_url = storage.upload_and_get_sas(img_byte_arr.getvalue(), blob_name, days=365)
             page_sas_urls[page_no] = sas_url
     
