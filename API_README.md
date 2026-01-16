@@ -1,5 +1,35 @@
 # 1440 Bot API v2.0 - Refactored Structure
 
+## Quick Start
+
+### One-Command Setup
+**Windows:**
+```powershell
+.\setup.ps1
+```
+
+**Linux/Mac:**
+```bash
+chmod +x setup.sh && ./setup.sh
+```
+
+### Start Server
+**Windows:**
+```powershell
+.\start_server.ps1
+```
+
+**Linux/Mac:**
+```bash
+./start_server.sh
+```
+
+Or manually:
+```bash
+source .venv/bin/activate  # Windows: .\.venv\Scripts\Activate.ps1
+python main.py
+```
+
 ## New Structure
 
 The API has been refactored into a clean FastAPI structure:
@@ -13,17 +43,15 @@ The API has been refactored into a clean FastAPI structure:
 └── src/              # Existing code (unchanged)
 ```
 
-## Running the API
+## Dependencies
 
-### Start the server:
-```bash
-python main.py
-```
+All dependencies are now properly configured in `pyproject.toml`:
+- ✅ FastAPI
+- ✅ Uvicorn
+- ✅ OpenAI
+- ✅ All other required packages
 
-Or with uvicorn directly:
-```bash
-uvicorn app.main:app --reload --port 8000
-```
+Run `uv pip install -e .` to install everything.
 
 ## Endpoints
 

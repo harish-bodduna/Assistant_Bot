@@ -1,6 +1,5 @@
 """Application entry point for FastAPI server."""
 import uvicorn
-from app.main import app
 
 if __name__ == "__main__":
     print("\n" + "="*60)
@@ -13,4 +12,11 @@ if __name__ == "__main__":
     print("\nAPI Docs: http://localhost:8000/docs")
     print("="*60 + "\n")
     
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Use import string format to enable reload mode
+    uvicorn.run(
+        "app.app:app",  # Import string instead of app object
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )

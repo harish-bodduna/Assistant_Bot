@@ -43,9 +43,12 @@ async def process_question_stream(question: str) -> AsyncGenerator[str, None]:
             yield f"data: {json.dumps({'error': 'Failed to generate response'})}\n\n"
             return
         
-        # 3. Stream markdown chunks
+        # 3. Stream markdown chunks immediately
+        # Start streaming as soon as we have the answer
         async for chunk in stream_markdown_chunks(answer_markdown):
             yield chunk
+            # Small delay to ensure chunks are sent (optional, helps with buffering)
+            await asyncio.sleep(0.01)
             
     except Exception as e:
         # Stream error as SSE
