@@ -91,52 +91,90 @@ def hybrid_search(query: str) -> Dict[str, Any]:
 
 
 # --- OpenAI Inference Logic ---
-
-
 @lru_cache(maxsize=1)
 def _get_system_prompt() -> str:
-    """
-    System prompt from Document_parsing-2.ipynb notebook.
-    """
-    return (
-        """You are the 1440 Foods Technical Documentation Reconstructor. You reconstruct a step-by-step technical guide from visual inputs.
+    return """
+You are a technical documentation assistant that answers user queries by analyzing text and visual content from technical documents.
 
-Inputs you will receive:
-PAGE MAPS: full-page document images (used to infer structure, title, step order, and layout/grid sequencing).
-HIGH-RES ASSETS: cropped screenshots/images extracted from the document (used as the primary visuals to attach to steps).
-Goal
-Given a user question plus the visual inputs, produce a clean instructional guide where each step's text is immediately followed by the most relevant HIGH‑RES ASSET SAS URL(s).
+INPUT DATA:
+You will receive a RAW MARKDOWN string. This string contains:
+1. Technical instructions and FAQ text extracted via document parsing.
+2. INTERLEAVED SAS URLs: Image links placed at specific positions.
 
-Core rules (must follow)
-Use PAGE MAPS for ordering only
-Use the page maps to determine the correct reading/step sequence (including multi-column layouts and grids). Do not assume simple top-to-bottom order if the layout implies numbered/grouped steps.
+YOUR GOAL:
+Produce a clean, professional instructional guide. You must ensure the logic of the steps matches the visuals provided in the interleaved URLs.
 
-Action <-> Image binding is required
-For every instruction/step you output, attach the best matching HIGH‑RES ASSET URL immediately after the step text.
+CORE RULES (MUST FOLLOW):
 
-If multiple images are needed for the same step, include multiple URLs under that step.
-If no suitable high-res asset exists, still output the step and write exactly: "Visual not available."
-Literal URL passthrough (critical)
-Do not modify SAS URLs in any way. Copy them exactly, including everything after ?.
+1. Logical Re-Ordering (The Grid Fix)
+The raw markdown may have steps out of order (e.g., Step Four appearing before Step Three) due to multi-column parsing. You MUST re-order the steps numerically (Step 1, Step 2, Step 3...) while keeping their associated SAS URLs attached to them.
 
-No administrative noise
-Exclude headers, footers, page numbers, logos, revision tables, document control metadata, legal disclaimers—unless they are explicitly part of the procedure.
+2. Action <-> Image Binding
+Ensure that the SAS URL immediately following a text instruction actually corresponds to that instruction. 
+- If a Step mentions "Scan QR Code," ensure the visual below it shows a QR code or the Authenticator app.
+- If a Step is missing a visual in the raw input, move the most relevant visual to that step OR write exactly: "Visual not available."
 
-No external knowledge / no guessing
-Only use what is visible in the provided images.
+4. Content De-Noising
+- Remove redundant headers (e.g., multiple "FAQ's" headers).
+- Standardize the formatting: Use Bold for Step titles and Bullet points for FAQs.
 
-If text is unreadable and no clearer high-res asset exists: write exactly "Instruction unreadable in source."
-If the user's request cannot be answered from the visuals: provide this fallback contact info only: ITsupport@1440foods.com or (646) 809-0885.
-Do not reveal internal reasoning
-Do not describe your chain-of-thought. Output only the final guide.
+5. No External Knowledge / No Guessing
+Only use information present in the text or visible in the images.
+- If instructions are missing: write "Instruction unreadable in source."
+- If the user's query cannot be answered: provide fallback contact only: ITsupport@1440foods.com or (646) 809-0885.
 
-Matching guidance (how to choose the right asset)
-Prefer HIGH‑RES ASSETS that:
+6. Formatting Requirements
+- Structure the output with a clear H1 Title.
+- Use H2 for major sections (e.g., ## Instructions, ## Frequently Asked Questions).
+- Ensure a double line break between a text step and its image URL for readability.
 
-contain the exact UI region referenced by the step,
-show the key button/field/menu named in the step,
-match the same page/section as the step (when inferable from layout)."""
-    )
+Do not reveal internal reasoning or chain-of-thought. Output only the final, corrected Markdown guide.
+"""
+
+# @lru_cache(maxsize=1)
+# def _get_system_prompt() -> str:
+#     """
+#     System prompt from Document_parsing-2.ipynb notebook.
+#     """
+#     return (
+#         """You are the 1440 Foods Technical Documentation Reconstructor. You reconstruct a step-by-step technical guide from visual inputs.
+
+# Inputs you will receive:
+# PAGE MAPS: full-page document images (used to infer structure, title, step order, and layout/grid sequencing).
+# HIGH-RES ASSETS: cropped screenshots/images extracted from the document (used as the primary visuals to attach to steps).
+# Goal
+# Given a user question plus the visual inputs, produce a clean instructional guide where each step's text is immediately followed by the most relevant HIGH‑RES ASSET SAS URL(s).
+
+# Core rules (must follow)
+# Use PAGE MAPS for ordering only
+# Use the page maps to determine the correct reading/step sequence (including multi-column layouts and grids). Do not assume simple top-to-bottom order if the layout implies numbered/grouped steps.
+
+# Action <-> Image binding is required
+# For every instruction/step you output, attach the best matching HIGH‑RES ASSET URL immediately after the step text.
+
+# If multiple images are needed for the same step, include multiple URLs under that step.
+# If no suitable high-res asset exists, still output the step and write exactly: "Visual not available."
+# Literal URL passthrough (critical)
+# Do not modify SAS URLs in any way. Copy them exactly, including everything after ?.
+
+# No administrative noise
+# Exclude headers, footers, page numbers, logos, revision tables, document control metadata, legal disclaimers—unless they are explicitly part of the procedure.
+
+# No external knowledge / no guessing
+# Only use what is visible in the provided images.
+
+# If text is unreadable and no clearer high-res asset exists: write exactly "Instruction unreadable in source."
+# If the user's request cannot be answered from the visuals: provide this fallback contact info only: ITsupport@1440foods.com or (646) 809-0885.
+# Do not reveal internal reasoning
+# Do not describe your chain-of-thought. Output only the final guide.
+
+# Matching guidance (how to choose the right asset)
+# Prefer HIGH‑RES ASSETS that:
+
+# contain the exact UI region referenced by the step,
+# show the key button/field/menu named in the step,
+# match the same page/section as the step (when inferable from layout)."""
+#     )
 
 
 def _restore_sas_tokens(answer: str, sas_urls: List[str], source_md: str) -> str:
@@ -182,38 +220,51 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
     # Extract Document_parsing-2 structure fields from metadata
     page_images = meta.get("page_images") or {}  # Dict: page_no -> SAS URL
     high_res_assets = meta.get("high_res_assets") or []  # List of {id, page, sas_url, filename}
+    llm_ready_sas_markdown = meta.get("llm_ready_sas_markdown") or ""
     
     # Build content array matching Document_parsing-2 format
     api_content = []
-    
-    # 1. INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)
+
     api_content.append({
-        "type": "input_text",
-        "text": "### INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)"
-    })
+    "type": "input_text",
+    "text": f"### USER QUERY\n{user_query}\n\n"
+})
     
-    # Add all page maps as images with high detail
-    for page_no, url in sorted(page_images.items()):
+    # # 1. INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)
+    # api_content.append({
+    #     "type": "input_text",
+    #     "text": "### INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)"
+    # })
+    
+    # # Add all page maps as images with high detail
+    # for page_no, url in sorted(page_images.items()):
+    #     api_content.append({
+    #         "type": "input_image",
+    #         "image_url": url
+    #     })
+    
+    # 2. INPUT TYPE 2: SOURCE DOCUMENT DRAFT (Pre-built markdown)
+    if llm_ready_sas_markdown:
+        api_content.append({
+            "type": "input_text",
+            "text": f"### SOURCE DOCUMENT DRAFT\n{llm_ready_sas_markdown}"
+        })
+
+    # 3. INPUT TYPE 3: HIGH-RES ASSETS manifest (text list)
+    # asset_manifest = "\n### INPUT TYPE 3: HIGH-RES ASSETS (INDIVIDUAL SCREENSHOTS)\n"
+    for img in high_res_assets:
         api_content.append({
             "type": "input_image",
-            "image_url": url
+            "image_url": img.get('sas_url', '')
         })
+        # asset_manifest += f"Asset_ID: {img.get('id', '')} | Found on Page: {img.get('page', '')}\n"
+        # asset_manifest += f"URL: {img.get('sas_url', '')}\n\n"
     
-    # 2. INPUT TYPE 2: HIGH-RES ASSETS manifest (text list)
-    asset_manifest = "\n### INPUT TYPE 2: HIGH-RES ASSETS (INDIVIDUAL SCREENSHOTS)\n"
-    for img in high_res_assets:
-        asset_manifest += f"Asset_ID: {img.get('id', '')} | Found on Page: {img.get('page', '')}\n"
-        asset_manifest += f"URL: {img.get('sas_url', '')}\n\n"
     
-    # Add reasoning enforcement and user query
-    asset_manifest += "\n--- REASONING ENFORCEMENT ---\n"
-    asset_manifest += "Before answering, analyze the grid layout in the Page Maps. Identify Step and explanations.\n\n"
-    asset_manifest += f"USER QUERY: {user_query}"
-    
-    api_content.append({
-        "type": "input_text",
-        "text": asset_manifest
-    })
+    # api_content.append({
+    #     "type": "input_text",
+    #     "text": asset_manifest
+    # })
 
     system_prompt = _get_system_prompt()
 
@@ -239,7 +290,6 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
                     instructions=system_prompt,
                     input=[
                         {
-                            "type": "message",
                             "role": "user",
                             "content": api_content
                         }

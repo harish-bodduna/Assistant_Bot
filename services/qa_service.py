@@ -44,8 +44,11 @@ async def process_question_stream(question: str) -> AsyncGenerator[str, None]:
             return
         
         # 3. Stream markdown chunks immediately
+        # Extract llm_ready_sas_markdown from retrieval metadata for visibility
+        llm_ready_sas_markdown = retrieval_data.get("text", {}).get("metadata", {}).get("llm_ready_sas_markdown")
+        
         # Start streaming as soon as we have the answer
-        async for chunk in stream_markdown_chunks(answer_markdown):
+        async for chunk in stream_markdown_chunks(answer_markdown, llm_ready_sas_markdown=llm_ready_sas_markdown):
             yield chunk
             # Small delay to ensure chunks are sent (optional, helps with buffering)
             await asyncio.sleep(0.01)

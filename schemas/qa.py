@@ -19,3 +19,4 @@ class QAResponse(BaseModel):
 class StreamingChunk(BaseModel):
     """Model for streaming SSE chunks."""
     chunk: str
+    llm_ready_sas_markdown: str | None = None
