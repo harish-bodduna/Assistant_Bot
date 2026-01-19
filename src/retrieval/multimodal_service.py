@@ -18,10 +18,7 @@ from src.config.settings import get_settings
 def ts_print(msg: str) -> None:
     print(f"[{datetime.now().isoformat()}] {msg}")
 
-
 # --- Embedding & Client Helpers ---
-
-
 def get_text_embed():
     return HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
@@ -82,11 +79,11 @@ def hybrid_search(query: str) -> Dict[str, Any]:
     }
 
     meta = text_hit["metadata"] or {}
-    total_pages = meta.get("total_pages") or 0
+    pages_count = meta.get("pages_count") or meta.get("total_pages") or 0
     sas_urls = meta.get("sas_urls") or []
     file_name = meta.get("file_name")
 
-    if total_pages and total_pages <= 10 and file_name:
+    if pages_count and pages_count <= 10 and file_name:
         ts_print(f"Full-doc injection for {file_name} (<=10 pages)")
         return {"text": text_hit, "sas_urls": sas_urls, "mode": "full_doc"}
 

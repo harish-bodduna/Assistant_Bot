@@ -164,10 +164,10 @@ class LayoutAwareIngestor:
                 curr_hash = imagehash.phash(pil_img)
                 
                 # Filter banned images
-                is_match = any((curr_hash - ref) < 15 for ref in self.banned_hashes)
-                if is_match:
-                    ts_print(f"[-] ELUDED: Matched banned reference on page {p_idx + 1}")
-                    continue
+                # is_match = any((curr_hash - ref) < 15 for ref in self.banned_hashes)
+                # if is_match:
+                #     ts_print(f"[-] ELUDED: Matched banned reference on page {p_idx + 1}")
+                #     continue
                 
                 # Generate unique ID
                 image_idx = ''.join(secrets.choice(string.hexdigits.lower()) for _ in range(4))
