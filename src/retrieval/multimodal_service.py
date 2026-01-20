@@ -316,7 +316,7 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
                 # sas_urls = [img.get("sas_url") for img in high_res_assets if img.get("sas_url")]
                 # full_md = text_hit.get("markdown") or ""
                 # answer = _restore_sas_tokens(answer, sas_urls, full_md)
-                _write_model_answer(text_hit, answer)
+                _write_model_answer(text_hit, answer, user_query)
                 ts_print("Primary inference succeeded (OpenAI GPT-5.2)")
                 return answer
             except Exception as e:
@@ -331,17 +331,19 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
         return "OpenAI not configured: missing API key or using localhost base."
 
 
-def _write_model_answer(text_hit: Dict[str, Any], answer: str) -> None:
+def _write_model_answer(text_hit: Dict[str, Any], answer: str, user_query: str | None = None) -> None:
     """
-    Write model answer next to the exported markdown, if markdown_path is present.
+    Write model answers into validations/<query>_<timestamp>.
     """
-    md_path = text_hit.get("metadata", {}).get("markdown_path") or text_hit.get("metadata", {}).get("markdown")
-    if not md_path:
-        return
+    query_label = "query"
+    if user_query:
+        sanitized = re.sub(r"[^\w]+", "_", user_query)
+        query_label = sanitized.strip("_") or "query"
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    target_dir = Path("C:/Users/Harish/Workspace/maestro_projects/1440_Bot/validations") / f"{query_label}_{timestamp}"
+    target_dir.mkdir(parents=True, exist_ok=True)
     try:
-        p = Path(md_path)
-        out_path = p.parent / "answer.md"
-        out_path.write_text(answer or "", encoding="utf-8")
+        (target_dir / "answer.md").write_text(answer or "", encoding="utf-8")
     except Exception:
-        # Best-effort; ignore write failures
         return
