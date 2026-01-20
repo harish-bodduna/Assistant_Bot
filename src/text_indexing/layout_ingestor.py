@@ -191,10 +191,8 @@ class LayoutAwareIngestor:
         
         ts_print(f"Extracted {len(high_res_assets)} high-res assets using PyMuPDF")
         
-        # Build LLM-ready markdown that references page images then assets
+        # Build LLM-ready markdown that references only high-res assets (no page-level images)
         llm_ready_lines: list[str] = []
-        for page_no in sorted(page_sas_urls.keys()):
-            llm_ready_lines.append(f"![Page {page_no}]({page_sas_urls[page_no]})")
         for asset in high_res_assets:
             label = asset.get("filename", asset.get("id", "asset"))
             llm_ready_lines.append(

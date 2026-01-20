@@ -97,33 +97,28 @@ def _get_system_prompt() -> str:
 You are a technical documentation assistant that answers user queries by analyzing text and visual content from technical documents.
 
 INPUT DATA:
-You will receive a RAW MARKDOWN string. This string contains:
+You will receive a RAW string. This string contains:
 1. Technical instructions and FAQ text extracted via document parsing.
 2. INTERLEAVED SAS URLs: Image links placed at specific positions.
 
 YOUR GOAL:
-Produce a clean, professional instructional guide. You must ensure the logic of the steps matches the visuals provided in the interleaved URLs.
+Produce a clean, professional instructional guide. You must ensure the logic of the steps matches the visuals provided in the URLs.
 
 CORE RULES (MUST FOLLOW):
 
 1. Logical Re-Ordering (The Grid Fix)
-The raw markdown may have steps out of order (e.g., Step Four appearing before Step Three) due to multi-column parsing. You MUST re-order the steps numerically (Step 1, Step 2, Step 3...) while keeping their associated SAS URLs attached to them.
+The raw text string may have steps out of order (e.g., Step Four appearing before Step Three) due to multi-column parsing. You MUST re-order the steps numerically (Step 1, Step 2, Step 3...) while keeping their associated SAS URLs attached to them.
 
 2. Action <-> Image Binding
 Ensure that the SAS URL immediately following a text instruction actually corresponds to that instruction. 
-- If a Step mentions "Scan QR Code," ensure the visual below it shows a QR code or the Authenticator app.
-- If a Step is missing a visual in the raw input, move the most relevant visual to that step OR write exactly: "Visual not available."
+Just map only the SAS URLs, without page number or Image Ids.
 
-4. Content De-Noising
-- Remove redundant headers (e.g., multiple "FAQ's" headers).
-- Standardize the formatting: Use Bold for Step titles and Bullet points for FAQs.
-
-5. No External Knowledge / No Guessing
+3. No External Knowledge / No Guessing
 Only use information present in the text or visible in the images.
 - If instructions are missing: write "Instruction unreadable in source."
 - If the user's query cannot be answered: provide fallback contact only: ITsupport@1440foods.com or (646) 809-0885.
 
-6. Formatting Requirements
+4. Formatting Requirements
 - Structure the output with a clear H1 Title.
 - Use H2 for major sections (e.g., ## Instructions, ## Frequently Asked Questions).
 - Ensure a double line break between a text step and its image URL for readability.
@@ -217,54 +212,35 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
 
     meta = text_hit.get("metadata") or {}
     
-    # Extract Document_parsing-2 structure fields from metadata
-    page_images = meta.get("page_images") or {}  # Dict: page_no -> SAS URL
-    high_res_assets = meta.get("high_res_assets") or []  # List of {id, page, sas_url, filename}
     llm_ready_sas_markdown = meta.get("llm_ready_sas_markdown") or ""
-    
-    # Build content array matching Document_parsing-2 format
+
     api_content = []
+    draft_text = (
+        "### SOURCE DOCUMENT DRAFT\n"
+        f"{llm_ready_sas_markdown}\n\n" if llm_ready_sas_markdown else
+        "### SOURCE DOCUMENT DRAFT\n_No markup available for this document._\n\n"
+    )
+    draft_text += (
+        "--- REASONING ENFORCEMENT ---\n"
+        "Answer the question using ONLY the markdown above.\n\n"
+        f"USER QUERY: {user_query}"
+    )
 
     api_content.append({
-    "type": "input_text",
-    "text": f"### USER QUERY\n{user_query}\n\n"
-})
-    
-    # # 1. INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)
-    # api_content.append({
-    #     "type": "input_text",
-    #     "text": "### INPUT TYPE 1: PAGE MAPS (STRUCTURE & LAYOUT)"
-    # })
-    
-    # # Add all page maps as images with high detail
-    # for page_no, url in sorted(page_images.items()):
-    #     api_content.append({
-    #         "type": "input_image",
-    #         "image_url": url
-    #     })
-    
-    # 2. INPUT TYPE 2: SOURCE DOCUMENT DRAFT (Pre-built markdown)
-    if llm_ready_sas_markdown:
-        api_content.append({
-            "type": "input_text",
-            "text": f"### SOURCE DOCUMENT DRAFT\n{llm_ready_sas_markdown}"
-        })
+        "type": "input_text",
+        "text": draft_text
+    })
 
-    # 3. INPUT TYPE 3: HIGH-RES ASSETS manifest (text list)
-    # asset_manifest = "\n### INPUT TYPE 3: HIGH-RES ASSETS (INDIVIDUAL SCREENSHOTS)\n"
-    for img in high_res_assets:
-        api_content.append({
-            "type": "input_image",
-            "image_url": img.get('sas_url', '')
-        })
-        # asset_manifest += f"Asset_ID: {img.get('id', '')} | Found on Page: {img.get('page', '')}\n"
-        # asset_manifest += f"URL: {img.get('sas_url', '')}\n\n"
-    
-    
-    # api_content.append({
-    #     "type": "input_text",
-    #     "text": asset_manifest
-    # })
+    # high-res assets as input images (SAS URLs)
+    high_res_assets = meta.get("high_res_assets") or []
+
+    for asset in high_res_assets:
+        url = asset.get("sas_url")
+        if url:
+            api_content.append({
+                "type": "input_image",
+                "image_url": url
+            })
 
     system_prompt = _get_system_prompt()
 
