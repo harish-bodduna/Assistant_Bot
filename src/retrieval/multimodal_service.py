@@ -276,7 +276,7 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
             try:
                 ts_print(
                     f"Attempting primary inference with GPT-5.2 "
-                    f"(base={settings.openai_api_base or 'https://api.openai.com'}), "
+                    f"(base={settings.openai_api_base or 'https://api.openai.com'}),"
                     f"attempt {attempt + 1}/{attempts}"
                 )
                 client = OpenAI(
@@ -311,10 +311,11 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
                     pass
 
                 answer = response.output_text
+                ts_print(f"Answer: {answer}")
                 # Restore SAS tokens if needed (extract from high_res_assets)
-                sas_urls = [img.get("sas_url") for img in high_res_assets if img.get("sas_url")]
-                full_md = text_hit.get("markdown") or ""
-                answer = _restore_sas_tokens(answer, sas_urls, full_md)
+                # sas_urls = [img.get("sas_url") for img in high_res_assets if img.get("sas_url")]
+                # full_md = text_hit.get("markdown") or ""
+                # answer = _restore_sas_tokens(answer, sas_urls, full_md)
                 _write_model_answer(text_hit, answer)
                 ts_print("Primary inference succeeded (OpenAI GPT-5.2)")
                 return answer

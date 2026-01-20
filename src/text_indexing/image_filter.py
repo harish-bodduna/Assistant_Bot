@@ -65,7 +65,7 @@ def get_enhanced_image(page, bbox, scale: float = 3.0) -> Image.Image:
 def capture_page_images(
     doc_result,
     storage: AzureBlobStorage,
-    project_name: str,
+    folder_prefix: str,
 ) -> dict:
     """
     Capture full page images from docling result and upload to blob storage.
@@ -86,9 +86,11 @@ def capture_page_images(
             img_byte_arr = io.BytesIO()
             page.image.pil_image.save(img_byte_arr, format='PNG')
             
-            # Match notebook structure: {project_name}/pages/page_{page_no}.png
-            blob_name = f"{project_name}/pages/page_{page_no}.png"
-            sas_url = storage.upload_and_get_sas(img_byte_arr.getvalue(), blob_name, days=365)
+            # Match folder structure within document prefix: {folder_prefix}/page_{page_no}.png
+            blob_name = f"page_{page_no}.png"
+            sas_url = storage.upload_and_get_sas(
+                img_byte_arr.getvalue(), blob_name, f"{folder_prefix}/pages", days=365
+            )
             page_sas_urls[page_no] = sas_url
     
     return page_sas_urls

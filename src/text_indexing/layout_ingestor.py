@@ -72,7 +72,7 @@ class LayoutAwareIngestor:
         self.converter = DocumentConverter(
             format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)}
         )
-        self.blob_container = os.getenv("AZURE_STORAGE_CONTAINER", "dummy")
+        self.blob_container = os.getenv("AZURE_STORAGE_CONTAINER", "qdrant-ingest-docs")
         conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
         if not conn_str:
             raise RuntimeError("AZURE_STORAGE_CONNECTION_STRING is required for Azure blob uploads")
@@ -111,8 +111,6 @@ class LayoutAwareIngestor:
         ts_print(f"Parsing {file_name} with component extraction")
         
         # Convert with docling to get conversion result
-        # Note: We reuse self.converter from __init__ (created once and reused for efficiency),
-        # but each PDF needs its own DocumentStream instance to process the PDF bytes
         ds = DocumentStream(name=file_name, stream=io.BytesIO(pdf_bytes))
         conv_res = self.converter.convert(ds)
         doc = conv_res.document
@@ -130,10 +128,11 @@ class LayoutAwareIngestor:
         # Get safe base name for blob storage
         safe_base = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in Path(file_name).stem)
         project_name = os.getenv("AZURE_STORAGE_PROJECT_NAME", "dummy")
+        document_folder = f"{project_name}/{safe_base}"
         storage_base_path = f"{project_name}/processed_images"
         
         # Capture page images from docling (matching notebook: project_name/pages/page_X.png)
-        page_sas_urls = capture_page_images(conv_res, self.storage, project_name)
+        page_sas_urls = capture_page_images(conv_res, self.storage, document_folder)
         ts_print(f"Captured {len(page_sas_urls)} page images")
         
         # Get pages count
@@ -161,13 +160,6 @@ class LayoutAwareIngestor:
                 
                 # Convert to PIL for filtering
                 pil_img = get_enhanced_image(page, bbox, scale=scale_factor)
-                curr_hash = imagehash.phash(pil_img)
-                
-                # Filter banned images
-                # is_match = any((curr_hash - ref) < 15 for ref in self.banned_hashes)
-                # if is_match:
-                #     ts_print(f"[-] ELUDED: Matched banned reference on page {p_idx + 1}")
-                #     continue
                 
                 # Generate unique ID
                 image_idx = ''.join(secrets.choice(string.hexdigits.lower()) for _ in range(4))
@@ -176,10 +168,16 @@ class LayoutAwareIngestor:
                 img_byte_arr = io.BytesIO()
                 pil_img.save(img_byte_arr, format='PNG')
                 blob_name = f"Image_{image_idx}.png"
-                blob_path = f"{storage_base_path}/{blob_name}"
+                folder_prefix = f"{document_folder}/assets"
                 
                 # Upload and get SAS URL
-                sas_url = self.storage.upload_and_get_sas(img_byte_arr.getvalue(), blob_path, days=365)
+                sas_url = self.storage.upload_and_get_sas(
+                    img_byte_arr.getvalue(), blob_name, folder_prefix, days=365
+                )
+                if folder_prefix not in sas_url:
+                    ts_print(
+                        f"Warning: SAS URL does not include expected prefix '{folder_prefix}'"
+                    )
                 
                 # Store in clean_images format (matching notebook)
                 high_res_assets.append({
@@ -193,6 +191,17 @@ class LayoutAwareIngestor:
         
         ts_print(f"Extracted {len(high_res_assets)} high-res assets using PyMuPDF")
         
+        # Build LLM-ready markdown that references page images then assets
+        llm_ready_lines: list[str] = []
+        for page_no in sorted(page_sas_urls.keys()):
+            llm_ready_lines.append(f"![Page {page_no}]({page_sas_urls[page_no]})")
+        for asset in high_res_assets:
+            label = asset.get("filename", asset.get("id", "asset"))
+            llm_ready_lines.append(
+                f"![{label} (page {asset.get('page')})]({asset['sas_url']})"
+            )
+        llm_ready_sas_markdown = "\n".join(llm_ready_lines)
+        
         # Prepare payload matching Document_parsing-2 format
         payload = {
             "file_name": file_name,
@@ -200,6 +209,7 @@ class LayoutAwareIngestor:
             "high_res_assets": high_res_assets,  # List of {id, page, sas_url, filename}
             "pages_count": pages_count,
             "raw_text": raw_text,  # For embedding/search
+            "llm_ready_sas_markdown": llm_ready_sas_markdown,
         }
         
         # Use raw_text for embedding (URL-free text)

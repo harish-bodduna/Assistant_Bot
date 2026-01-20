@@ -6,7 +6,7 @@ from azure.storage.blob import BlobServiceClient, BlobSasPermissions, generate_b
 
 
 class AzureBlobStorage:
-    def __init__(self, container: str, connection_string: str) -> None:
+    def __init__(self, connection_string: str, container: str = "qdrant-ingest-docs") -> None:
         self.container = container
         self.connection_string = connection_string
         self.service = BlobServiceClient.from_connection_string(connection_string)
@@ -18,8 +18,17 @@ class AzureBlobStorage:
         except Exception:
             pass
 
-    def upload_and_get_sas(self, data: bytes, blob_name: str, days: int = 30) -> str:
-        blob_client = self.service.get_blob_client(container=self.container, blob=blob_name)
+    def upload_and_get_sas(
+        self,
+        data: bytes,
+        blob_name: str,
+        folder_prefix: str,
+        days: int = 30,
+    ) -> str:
+        full_blob_name = f"{folder_prefix.rstrip('/')}/{blob_name}"
+        blob_client = self.service.get_blob_client(
+            container=self.container, blob=full_blob_name
+        )
         blob_client.upload_blob(data, overwrite=True)
         account_name = self.service.account_name
         account_key = self._account_key()
@@ -27,14 +36,14 @@ class AzureBlobStorage:
             account_name=account_name,
             account_key=account_key,
             container_name=self.container,
-            blob_name=blob_name,
+            blob_name=full_blob_name,
             permission=BlobSasPermissions(read=True),
             expiry=datetime.utcnow() + timedelta(days=days),
             start=datetime.utcnow() - timedelta(minutes=5),
         )
         return (
             f"https://{self.service.account_name}.blob.core.windows.net/"
-            f"{self.container}/{blob_name}?{sas}"
+            f"{self.container}/{full_blob_name}?{sas}"
         )
 
     def _account_key(self) -> str:
