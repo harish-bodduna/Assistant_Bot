@@ -111,7 +111,6 @@ The raw text string may have steps out of order (e.g., Step Four appearing befor
 
 2. Action <-> Image Binding
 Ensure that the SAS URL immediately following a text instruction actually corresponds to that instruction. 
-Just map only the SAS URLs, without page number or Image Ids.
 
 3. No External Knowledge / No Guessing
 Only use information present in the text or visible in the images.
@@ -232,15 +231,15 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
     })
 
     # high-res assets as input images (SAS URLs)
-    high_res_assets = meta.get("high_res_assets") or []
+    # high_res_assets = meta.get("high_res_assets") or []
 
-    for asset in high_res_assets:
-        url = asset.get("sas_url")
-        if url:
-            api_content.append({
-                "type": "input_image",
-                "image_url": url
-            })
+    # for asset in high_res_assets:
+    #     url = asset.get("sas_url")
+    #     if url:
+    #         api_content.append({
+    #             "type": "input_image",
+    #             "image_url": url
+    #         })
 
     system_prompt = _get_system_prompt()
 

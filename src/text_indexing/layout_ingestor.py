@@ -145,60 +145,49 @@ class LayoutAwareIngestor:
                 raw_text_parts.append(item["content"])
         raw_text = "\n".join(raw_text_parts)
         
-        # Extract high-res images using PyMuPDF (Document_parsing-2 approach)
-        ts_print("Extracting high-res images using PyMuPDF")
+        # Build LLM-ready markdown by iterating through collected items in order
+        # Interleaves text and images as they appear in the document
+        final_sas_markdown = []
         high_res_assets = []
-        scale_factor = 3.0
+        storage_base_path = f"{project_name}/processed_images"
         
-        # Open PDF with PyMuPDF for image extraction
-        pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        
-        for p_idx in range(len(pdf_doc)):
-            page = pdf_doc.load_page(p_idx)
-            for img_info in page.get_image_info():
-                bbox = img_info["bbox"]
-                
-                # Convert to PIL for filtering
-                pil_img = get_enhanced_image(page, bbox, scale=scale_factor)
+        for item in collected:
+            if item["type"] == "text":
+                content = item["content"]
+                final_sas_markdown.append(content)
+            
+            elif item["type"] == "image":
+                pil_img = item["image"]
+                page = item.get("page", 0)
                 
                 # Generate unique ID
-                image_idx = ''.join(secrets.choice(string.hexdigits.lower()) for _ in range(4))
+                unique_hex = ''.join(secrets.choice(string.hexdigits.lower()) for _ in range(4))
+                asset_id = f"ASSET_{unique_hex}"
                 
-                # Prepare for upload
+                # Convert PIL image to bytes
                 img_byte_arr = io.BytesIO()
                 pil_img.save(img_byte_arr, format='PNG')
-                blob_name = f"Image_{image_idx}.png"
-                folder_prefix = f"{document_folder}/assets"
+                img_bytes = img_byte_arr.getvalue()
                 
-                # Upload and get SAS URL
-                sas_url = self.storage.upload_and_get_sas(
-                    img_byte_arr.getvalue(), blob_name, folder_prefix, days=365
-                )
-                if folder_prefix not in sas_url:
-                    ts_print(
-                        f"Warning: SAS URL does not include expected prefix '{folder_prefix}'"
-                    )
+                # Upload to blob storage
+                filename = f"visual_{unique_hex}_page_{page}.png"
+                sas_url = self.storage.upload_and_get_sas(img_bytes, filename, storage_base_path, days=365)
                 
-                # Store in clean_images format (matching notebook)
+                # Add markdown image syntax
+                final_sas_markdown.append(f"![{unique_hex}]({sas_url})")
+                
+                # Track in high_res_assets for metadata
                 high_res_assets.append({
                     "sas_url": sas_url,
-                    "page": p_idx + 1,
-                    "id": image_idx,
-                    "filename": blob_name
+                    "page": page,
+                    "id": unique_hex,
+                    "filename": filename
                 })
         
-        pdf_doc.close()
+        # Join with double newline to separate text and images
+        llm_ready_sas_markdown = "\n\n".join(final_sas_markdown)
         
-        ts_print(f"Extracted {len(high_res_assets)} high-res assets using PyMuPDF")
-        
-        # Build LLM-ready markdown that references only high-res assets (no page-level images)
-        llm_ready_lines: list[str] = []
-        for asset in high_res_assets:
-            label = asset.get("filename", asset.get("id", "asset"))
-            llm_ready_lines.append(
-                f"![{label} (page {asset.get('page')})]({asset['sas_url']})"
-            )
-        llm_ready_sas_markdown = "\n".join(llm_ready_lines)
+        ts_print(f"Built markdown with {len([i for i in collected if i['type'] == 'text'])} text blocks and {len(high_res_assets)} images")
         
         # Prepare payload matching Document_parsing-2 format
         payload = {
