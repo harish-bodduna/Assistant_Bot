@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import qa, ingestion, health
+# from routers.demo_qa import router as demo_qa_router  # Commented out - using main QA endpoint for demo
 
 app = FastAPI(
     title="1440 Bot API",
@@ -27,3 +28,4 @@ app.add_middleware(
 app.include_router(qa.router, prefix="/api/qa", tags=["QA"])
 app.include_router(ingestion.router, prefix="/api/ingest", tags=["Ingestion"])
 app.include_router(health.router, tags=["Health"])
+# app.include_router(demo_qa_router, prefix="/api/demo/qa", tags=["Demo QA"])  # Commented out - using main QA endpoint for demo

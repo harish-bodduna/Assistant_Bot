@@ -11,7 +11,7 @@ if __name__ == "__main__":
     print("  GET  /health            - Health check")
     print("\nAPI Docs: http://localhost:8000/docs")
     print("="*60 + "\n")
-    
+
     # Use import string format to enable reload mode
     uvicorn.run(
         "app.app:app",  # Import string instead of app object

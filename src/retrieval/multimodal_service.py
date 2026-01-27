@@ -90,6 +90,71 @@ def hybrid_search(query: str) -> Dict[str, Any]:
     return {"text": text_hit, "sas_urls": sas_urls, "mode": "chunk"}
 
 
+def demo_hybrid_search(query: str) -> Dict[str, Any]:
+    """Demo version of hybrid_search that searches demo Qdrant (port 7333)."""
+    settings = get_settings()
+    ts_print("Demo: Embedding query for text search in demo Qdrant")
+    try:
+        # Connect to demo Qdrant
+        demo_client = QdrantClient(
+            url=settings.demo_qdrant_url,
+            api_key=settings.demo_qdrant_api_key,
+            check_compatibility=False,
+        )
+        text_model = get_text_embed()
+        q_vec = text_model.get_text_embedding(query)
+        
+        res = demo_client.http.search_api.search_points(
+            collection_name="manuals_text",
+            search_request=models.SearchRequest(
+                vector=q_vec,
+                limit=1,
+                with_payload=True,
+            ),
+        ).result
+    except Exception as exc:
+        ts_print(f"Demo Qdrant text search failed: {exc}")
+        return {
+            "text": None,
+            "sas_urls": [],
+            "mode": "error",
+            "error": f"Demo Qdrant search failed: {exc}",
+        }
+
+    if not res:
+        return {"text": None, "sas_urls": [], "mode": "none"}
+
+    top = res[0]
+    payload = top.payload or {}
+    
+    # Look for llm_ready_sas_markdown first (this is what we stored)
+    llm_md = (
+        payload.get("llm_ready_sas_markdown")
+        or payload.get("llm_markdown")
+        or payload.get("text")
+        or payload.get("page_content")
+        or payload.get("content")
+        or ""
+    )
+    
+    text_hit = {
+        "markdown": llm_md,
+        "metadata": payload,
+        "score": top.score,
+    }
+
+    meta = text_hit["metadata"] or {}
+    pages_count = meta.get("pages_count") or meta.get("total_pages") or 0
+    sas_urls = meta.get("sas_urls") or []
+    file_name = meta.get("file_name")
+
+    if pages_count and pages_count <= 10 and file_name:
+        ts_print(f"Demo: Full-doc injection for {file_name} (<=10 pages)")
+        return {"text": text_hit, "sas_urls": sas_urls, "mode": "full_doc"}
+
+    return {"text": text_hit, "sas_urls": sas_urls, "mode": "chunk"}
+
+
 # --- OpenAI Inference Logic ---
 @lru_cache(maxsize=1)
 def _get_system_prompt() -> str:
@@ -111,6 +176,7 @@ The raw text string may have steps out of order (e.g., Step Four appearing befor
 
 2. Action <-> Image Binding
 Ensure that the SAS URL immediately following a text instruction actually corresponds to that instruction. 
+Do not add "SAS_URL: prefix" as provided in the input. Just pass the URL as it is.
 
 3. No External Knowledge / No Guessing
 Only use information present in the text or visible in the images.
@@ -124,52 +190,6 @@ Only use information present in the text or visible in the images.
 
 Do not reveal internal reasoning or chain-of-thought. Output only the final, corrected Markdown guide.
 """
-
-# @lru_cache(maxsize=1)
-# def _get_system_prompt() -> str:
-#     """
-#     System prompt from Document_parsing-2.ipynb notebook.
-#     """
-#     return (
-#         """You are the 1440 Foods Technical Documentation Reconstructor. You reconstruct a step-by-step technical guide from visual inputs.
-
-# Inputs you will receive:
-# PAGE MAPS: full-page document images (used to infer structure, title, step order, and layout/grid sequencing).
-# HIGH-RES ASSETS: cropped screenshots/images extracted from the document (used as the primary visuals to attach to steps).
-# Goal
-# Given a user question plus the visual inputs, produce a clean instructional guide where each step's text is immediately followed by the most relevant HIGH‑RES ASSET SAS URL(s).
-
-# Core rules (must follow)
-# Use PAGE MAPS for ordering only
-# Use the page maps to determine the correct reading/step sequence (including multi-column layouts and grids). Do not assume simple top-to-bottom order if the layout implies numbered/grouped steps.
-
-# Action <-> Image binding is required
-# For every instruction/step you output, attach the best matching HIGH‑RES ASSET URL immediately after the step text.
-
-# If multiple images are needed for the same step, include multiple URLs under that step.
-# If no suitable high-res asset exists, still output the step and write exactly: "Visual not available."
-# Literal URL passthrough (critical)
-# Do not modify SAS URLs in any way. Copy them exactly, including everything after ?.
-
-# No administrative noise
-# Exclude headers, footers, page numbers, logos, revision tables, document control metadata, legal disclaimers—unless they are explicitly part of the procedure.
-
-# No external knowledge / no guessing
-# Only use what is visible in the provided images.
-
-# If text is unreadable and no clearer high-res asset exists: write exactly "Instruction unreadable in source."
-# If the user's request cannot be answered from the visuals: provide this fallback contact info only: ITsupport@1440foods.com or (646) 809-0885.
-# Do not reveal internal reasoning
-# Do not describe your chain-of-thought. Output only the final guide.
-
-# Matching guidance (how to choose the right asset)
-# Prefer HIGH‑RES ASSETS that:
-
-# contain the exact UI region referenced by the step,
-# show the key button/field/menu named in the step,
-# match the same page/section as the step (when inferable from layout)."""
-#     )
-
 
 def _restore_sas_tokens(answer: str, sas_urls: List[str], source_md: str) -> str:
     """
@@ -304,6 +324,67 @@ def get_1440_response(user_query: str, retrieved_context: Dict[str, Any]) -> str
     else:
         ts_print("Primary inference skipped (no API key or using localhost base)")
         return "OpenAI not configured: missing API key or using localhost base."
+
+
+def get_demo_response(user_query: str, pre_written_answer: str) -> str:
+    """
+    Demo response function that should return the pre-written answer unchanged.
+    Calls OpenAI but with instructions to return the input exactly.
+    
+    Args:
+        user_query: The user's question (for logging purposes)
+        pre_written_answer: The pre-written markdown answer to echo back
+        
+    Returns:
+        The OpenAI response (should be identical to pre_written_answer)
+    """
+    settings = get_settings()
+    
+    if not settings.openai_api_key:
+        ts_print("Demo: No OpenAI API key, returning pre-written answer directly")
+        return pre_written_answer
+    
+    try:
+        client = OpenAI(
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_api_base or None,
+        )
+        
+        # Prompt that instructs the model to return the input unchanged
+        system_prompt = """
+        You are a technical documentation assistant that answers user queries by analyzing text and visual content from technical documents.
+        Keep the input exactly as it is. Do not tamper the SAS URls associated with the text.
+        Explain the steps with the help of the SAS URLs. 
+        Return the answer in Markdown format in exact step and SAS URL as provided in the input.
+        """
+        
+        ts_print(f"Demo: Calling OpenAI to echo pre-written answer for query: {user_query[:50]}...")
+        
+        response = client.responses.create(
+            model="gpt-5.2",
+            instructions=system_prompt,
+            input=[{
+                "role": "user", 
+                "content": [{
+                    "type": "input_text",
+                    "text": pre_written_answer
+                }]
+            }],
+            reasoning={
+                "effort": "low",  # Minimal reasoning for demo
+                "summary": "auto"
+            },
+            timeout=30,
+        )
+        
+        answer = response.output_text
+        ts_print("Demo: OpenAI echo completed successfully")
+        return answer
+        
+    except Exception as e:
+        # If OpenAI fails, return the pre-written answer
+        ts_print(f"Demo: OpenAI call failed: {e}, returning pre-written answer directly")
+        return pre_written_answer
 
 
 def _write_model_answer(text_hit: Dict[str, Any], answer: str, user_query: str | None = None) -> None:

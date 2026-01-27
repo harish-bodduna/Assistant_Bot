@@ -1,0 +1,9 @@
+{
+  "question_mappings": {
+    "multi.*factor.*auth": "Explain_multifactor_authentication_steps_20260120_115026",
+    "barracuda.*backup": "Explain_barracuda_backup_policy_20260120_144540",
+    "sharepoint.*access": "Explain_the_external_sharepoint_access_steps_20260120_123640",
+    "password.*reset": "Explain_the_password_reset_steps_20260120_152050"
+  },
+  "default_folder": null
+}

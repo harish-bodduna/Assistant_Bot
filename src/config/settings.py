@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     qdrant_collection_visual: str = Field("tech_manuals", alias="QDRANT_COLLECTION_VISUAL")
     qdrant_collection_text: str = Field("tech_manuals_text_only", alias="QDRANT_COLLECTION_TEXT")
 
+    # Demo mode settings
+    demo_qdrant_url: str = Field("http://localhost:7333", alias="DEMO_QDRANT_URL")
+    demo_qdrant_api_key: Optional[str] = Field(None, alias="DEMO_QDRANT_API_KEY")
+    demo_config_path: str = Field("demo_qa_config.json", alias="DEMO_CONFIG_PATH")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

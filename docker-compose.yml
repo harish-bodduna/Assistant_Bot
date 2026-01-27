@@ -11,7 +11,19 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
 
+  qdrant_demo:
+    image: qdrant/qdrant:v1.9.2
+    container_name: qdrant_demo
+    restart: unless-stopped
+    ports:
+      - "7333:6333"
+      - "7334:6334"
+    volumes:
+      - qdrant_demo_storage:/qdrant/storage
+
 volumes:
   qdrant_storage:
+    driver: local
+  qdrant_demo_storage:
     driver: local
 

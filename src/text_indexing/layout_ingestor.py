@@ -21,6 +21,7 @@ from src.text_indexing.doc_parser import parse_document
 from src.text_indexing.image_filter import build_reference_hashes, capture_page_images, get_enhanced_image
 from src.text_indexing.qdrant_writer import upsert_markdown
 from src.text_indexing.storage import AzureBlobStorage
+from src.config.settings import get_settings
 
 # LlamaIndex embeddings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -62,6 +63,22 @@ class LayoutAwareIngestor:
             url=os.getenv("QDRANT_URL", "http://localhost:6333"),
             check_compatibility=False,
         )
+        
+        # Initialize demo Qdrant client if configured
+        settings = get_settings()
+        self.demo_client: Optional[QdrantClient] = None
+        if settings.demo_qdrant_url:
+            try:
+                self.demo_client = QdrantClient(
+                    url=settings.demo_qdrant_url,
+                    api_key=settings.demo_qdrant_api_key,
+                    check_compatibility=False,
+                )
+                ts_print(f"Demo Qdrant client initialized: {settings.demo_qdrant_url}")
+            except Exception as e:
+                ts_print(f"Warning: Failed to initialize demo Qdrant client: {e}")
+                self.demo_client = None
+        
         pipeline_options = PdfPipelineOptions()
         pipeline_options.generate_picture_images = True
         pipeline_options.images_scale = 2.0
@@ -100,11 +117,25 @@ class LayoutAwareIngestor:
         if dim is None:
             raise RuntimeError("Embedding model did not expose dimensions")
         ts_print(f"Ensuring text collection '{self.collection}' (dim={dim})")
+        
+        # Ensure collection in main Qdrant
         if not self.client.collection_exists(self.collection):
             self.client.create_collection(
                 collection_name=self.collection,
                 vectors_config=models.VectorParams(size=dim, distance=models.Distance.COSINE),
             )
+        
+        # Ensure collection in demo Qdrant if configured
+        if self.demo_client:
+            try:
+                if not self.demo_client.collection_exists(self.collection):
+                    self.demo_client.create_collection(
+                        collection_name=self.collection,
+                        vectors_config=models.VectorParams(size=dim, distance=models.Distance.COSINE),
+                    )
+                    ts_print(f"Created demo collection '{self.collection}' in demo Qdrant")
+            except Exception as e:
+                ts_print(f"Warning: Failed to ensure demo collection: {e}")
 
     def index_pdf(self, pdf_bytes: bytes, file_name: str) -> None:
         """Process PDF and generate 7 required outputs following notebook logic."""
@@ -204,4 +235,14 @@ class LayoutAwareIngestor:
         # because it's used to generate the embedding vector (needs clean text without URLs).
         # The payload also contains raw_text (along with all 6 other fields) for storage and retrieval.
         # This design allows us to use clean text for embeddings while storing the full payload.
+        
+        # Write to main Qdrant
         upsert_markdown(self.client, self.collection, self.embed, raw_text, payload)
+        
+        # Write to demo Qdrant if configured
+        if self.demo_client:
+            try:
+                upsert_markdown(self.demo_client, self.collection, self.embed, raw_text, payload)
+                ts_print(f"Written to demo Qdrant: {self.collection}")
+            except Exception as e:
+                ts_print(f"Warning: Failed to write to demo Qdrant: {e}")
